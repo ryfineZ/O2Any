@@ -28,6 +28,7 @@ jobs:
           npm install
           npm run build
           npm run download
+          unzip -o assets.zip -d assets
 
       - name: 打包插件整包
         run: |
