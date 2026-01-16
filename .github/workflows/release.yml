@@ -1,0 +1,48 @@
+name: Release Obsidian plugin
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Test scenario tags'
+        required: true
+        type: string
+  push:
+    tags:
+      - "*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build plugin
+        run: |
+          npm install
+          npm run build
+          npm run download
+
+      - name: 打包插件整包
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          mkdir -p release/o2any-obsdian
+          cp main.js manifest.json styles.css release/o2any-obsdian/
+          cp -R assets release/o2any-obsdian/
+          (cd release && zip -r "O2Any-${tag}.zip" o2any-obsdian)
+
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+
+          gh release create "$tag" \
+            --title="$tag" \
+            --draft assets.zip main.js manifest.json styles.css "release/O2Any-${tag}.zip"
