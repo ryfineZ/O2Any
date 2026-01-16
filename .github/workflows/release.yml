@@ -49,4 +49,4 @@ jobs:
 
           gh release create "$tag" \
             --title="$tag" \
-            --draft assets.zip main.js manifest.json styles.css "release/O2Any-${tag}.zip"
+            assets.zip main.js manifest.json styles.css "release/O2Any-${tag}.zip"
