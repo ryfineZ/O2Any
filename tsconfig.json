@@ -3,23 +3,46 @@
     "baseUrl": ".",
     "inlineSourceMap": true,
     "inlineSources": true,
-    "module": "ESNext",
+    "module": "CommonJS",	
     "target": "ES2018",
+    "outDir": "./dist",
     "allowJs": true,
     "noImplicitAny": true,
     "moduleResolution": "node",
     "importHelpers": true,
     "isolatedModules": true,
-	"strictNullChecks": true,
+    "strictNullChecks": true,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+	 "esModuleInterop": true,
     "lib": [
-      "DOM",
-      "DOM.Iterable",
+      "DOM", 
       "ES5",
       "ES6",
-      "ES7"
-    ]
+      "ES7","esnext", "dom", "dom.iterable", "scripthost", "es2017", "es2018"
+    ],
   },
   "include": [
-    "**/*.ts"
-  ]
+    "**/*.ts",
+	"src",
+	"themes",
+	"types"
+  ],
+  "exclude": [
+    "node_modules",
+    "test",
+    "icons",
+    "src/assets/css/build-template-css.js",
+    "*.mjs",
+    "**/*.js",
+    "src/render/dom-to-image-more.js"
+  ],
+  "typeRoots": ["./types", "./node_modules/@types"],
+  "paths": {
+    "@/*": ["src/*"],
+    "@types/*": ["types/*"],
+	"@assets/*": ["src/assets/*"]
+
+  }
 }

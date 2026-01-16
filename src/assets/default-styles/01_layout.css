@@ -1,0 +1,30 @@
+/**
+* 定义微信文章的页面版式和基本字体风格的样式
+*/
+
+:root {
+	/* page  layout */
+	--article-max-width: none;
+	--article-min-width: 200px;
+	--article-padding: 0px;
+	--article-margin: 0px;
+	--article-background-color: var(--one2mp-bg);
+	--article-background-image: none;
+	--article-background-repeat: repeat;
+	--article-background-size: auto;
+	--article-background-position: left top;
+	
+}
+
+.one2mp {
+	max-width: var(--article-max-width);
+	min-width: var(--article-min-width);
+	padding: var(--article-padding);
+	margin: var(--article-margin);
+	background-color: var(--article-background-color);
+	background-image: var(--article-background-image);
+	background-repeat: var(--article-background-repeat);
+	background-size: var(--article-background-size);
+	background-position: var(--article-background-position);
+	
+}

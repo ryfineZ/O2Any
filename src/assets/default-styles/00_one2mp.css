@@ -1,0 +1,55 @@
+/* 00_one2mp.css 
+	定义one2mp的基本色系
+
+*/
+:root {
+  /* 主色系 */
+  --one2mp-primary: #2c3e50;
+  --one2mp-secondary: #3498db;
+  --one2mp-accent: #e67e22;
+  --one2mp-primary-light: #d0e4ff;
+  
+  /* 中性色 */
+  --one2mp-bg: transparent;
+  --one2mp-bg-alt: var(--one2mp-primary);
+  --one2mp-text: #333333;
+  --one2mp-text-color: var(--one2mp-text);
+  --one2mp-text-alt: #ffffff;
+  --one2mp-border:#999999;
+  
+  /* 状态色 */
+  --one2mp-success: #27ae60;
+  --one2mp-success: #28a745;
+  --one2mp-warning: #ff9800;
+  --one2mp-error: #e74c3c;
+  --one2mp-danger:  #dc3545;
+  --one2mp-blue: #1e3a8a;
+}	
+
+:root {
+	--one2mp-font-size: 16px;
+	--one2mp-line-height: 1.8;
+	--one2mp-text-indent: 0;
+	--one2mp-letter-spacing: 0;
+	--one2mp-word-spacing: 0;
+	--one2mp-text-align: left;
+	--one2mp-text-decoration: none;
+	--one2mp-border-width: 1px;
+	--one2mp-border-style: solid;
+	--one2mp-border-radius: 4px;
+	--one2mp-border-radius-sm: 2px;
+	--one2mp-border-radius-lg: 6px;
+	--one2mp-border-radius-xl: 8px;
+}
+body{
+	font-size: var(--one2mp-font-size);
+	line-height: var(--one2mp-line-height);
+	text-indent: var(--one2mp-text-indent);
+	letter-spacing: var(--one2mp-letter-spacing);
+	word-spacing: var(--one2mp-word-spacing);
+	text-align: var(--one2mp-text-align);
+	text-decoration: var(--one2mp-text-decoration);
+	border-width: var(--one2mp-border-width);
+	border-style: var(--one2mp-border-style);
+	border-radius: var(--one2mp-border-radius);
+} 

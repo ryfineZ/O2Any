@@ -1,162 +1,675 @@
 /*
- * Copyright (c) 2024-2025 Sun Booshi
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
- 
-/* =========================================================== */
-/* UI 样式                                                      */
-/* =========================================================== */
-.note-preview {
-  min-height: 100%;
-  width: 100%;
-  height: 100%;
-  background-color: #fff;
-  display: flex;
-  flex-direction: column;
+
+CSS for one2mp plugin.
+
+*/
+
+.one2mp-ribbon-icon {
+	color: var(--interactive-accent);
 }
 
-.render-div {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
+/* ==========================================================================
+   Global Variables & Utilities
+   ========================================================================== */
+:root {
+    --one2mp-cover-ratio: 2.35;
+    --one2mp-card-bg: var(--background-secondary);
+    --one2mp-border: 1px solid var(--background-modifier-border);
 }
 
-.preview-toolbar {
-  position: relative;
-  min-height: 100px;
-  border-bottom: #e4e4e4 1px solid;
-  background-color: var(--background-primary);
+/* ==========================================================================
+   Settings Tab (Refactored)
+   ========================================================================== */
+.one2mp-settings .one2mp-account-item {
+    margin-bottom: 12px;
+    border: var(--one2mp-border);
+    border-radius: var(--radius-m);
+    background-color: var(--background-primary-alt);
+    overflow: hidden;
 }
 
-.toolbar-line {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  margin: 10px 10px;
+.one2mp-settings .one2mp-account-item summary {
+    padding: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    background-color: var(--background-modifier-hover);
 }
 
-.copy-button {
-  margin-right: 10px;
+.one2mp-settings .one2mp-account-details {
+    padding: 10px 16px;
+    border-top: var(--one2mp-border);
 }
 
-.refresh-button {
-  margin-right: 10px;
+.one2mp-settings .one2mp-no-account {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+    border: 1px dashed var(--text-faint);
+    border-radius: var(--radius-m);
 }
 
-.upload-input {
-  margin-left: 10px;
-  visibility: hidden;
-  width: 0px;
+/* Settings Tab IP Styles */
+.one2mp-ip-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-end;
+    width: 100%;
+}
+.one2mp-ip-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background-color: var(--background-primary-alt);
+    font-family: var(--font-monospace);
+    font-size: 0.85em;
+    transition: all 0.2s;
+}
+.one2mp-ip-row:hover {
+    background-color: var(--background-modifier-hover);
+    border-color: var(--interactive-accent);
+}
+.one2mp-ip-label {
+    color: var(--text-muted);
+}
+.one2mp-ip-value {
+    color: var(--text-normal);
+    font-weight: 600;
 }
 
-.style-label {
-  margin-right: 10px;
+.one2mp-appid-guide {
+    margin: 8px 0 16px;
+    padding: 8px 12px;
+    background-color: var(--background-secondary);
+    border-radius: var(--radius-s);
+    font-size: 0.9em;
+    color: var(--text-muted);
 }
 
-.style-select {
-  margin-right: 10px;
-  width: 120px;
+.one2mp-appid-guide a {
+    color: var(--text-accent);
+    text-decoration: underline;
 }
 
-.msg-view {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: var(--background-primary);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  font-size: 18px;
-  z-index: 9999;
-  display: none;
+/* Danger Button Override */
+.danger-extra-button .clickable-icon {
+    color: var(--text-error);
+}
+.danger-extra-button .clickable-icon:hover {
+    background-color: var(--background-modifier-error-hover);
 }
 
-.msg-title {
-  margin-bottom: 20px;
-  max-width: 90%;
+/* ==========================================================================
+   Previewer Toolbar - Unified Height & Alignment
+   ========================================================================== */
+.one2mp-preview-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    border-bottom: var(--one2mp-border);
+    background-color: var(--background-primary);
+    min-height: 48px;
+    height: auto; /* Allow growth for multiple lines */
+    flex-shrink: 0;
+    gap: 8px;
+    flex-wrap: wrap; /* ENABLE WRAPPING */
 }
 
-.note-mpcard-wrapper {
-  margin: 20px 20px;
-  background-color: rgb(250, 250, 250);
-  padding: 10px 20px;
-  border-radius: 10px;
-}
-.note-mpcard-content {
-  display: flex;
-}
-.note-mpcard-headimg {
-  border: none !important;
-  border-radius: 27px !important;
-  box-shadow: none !important;
-  width: 54px !important;
-  height: 54px !important;
-  margin: 0 !important;
-}
-.note-mpcard-info { 
-  margin-left: 10px;
-}
-.note-mpcard-nickname {
-  font-size: 17px;
-  font-weight: 500;
-  color: rgba(0, 0, 0, 0.9);
+.toolbar-group-left {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1 1 auto;
+    min-width: 120px;
 }
 
-.note-mpcard-signature {
+.toolbar-group-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto; /* Allow to grow and take its own row */
+    justify-content: flex-end; /* Align to right on the current line */
+    flex-wrap: wrap; /* Internal wrap for buttons if very narrow */
+}
+
+.toolbar-group-center {
+    display: none;
+}
+
+/* 
+   Universal Reset for Toolbar Dropdowns 
+*/
+.one2mp-preview-toolbar select {
+    height: 32px !important;
+    line-height: 30px;
+    border: 1px solid var(--background-modifier-border) !important;
+    background-color: var(--background-primary-alt) !important;
+    border-radius: var(--radius-s) !important;
+    padding: 0 18px 0 6px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    vertical-align: middle;
+}
+
+/* Adjust dropdown widths */
+.toolbar-group-left select {
+    width: 100%;
+    min-width: 100px;
+    max-width: 200px;
+}
+
+/* 
+   Actions Group (Theme + Buttons)
+*/
+.one2mp-toolbar-actions-group {
+    border: 1px solid var(--background-modifier-border);
+    padding: 0 2px; 
+    background-color: var(--background-primary-alt);
+    border-radius: var(--radius-s);
+    height: 32px;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    gap: 0px;
+    flex-shrink: 0;
+}
+
+/* Theme Dropdown inside the group */
+.one2mp-toolbar-actions-group select {
+    border: none !important;
+    background-color: transparent !important;
+    height: 30px !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    max-width: 140px;
+    min-width: 60px;
+}
+
+/* IP Badge */
+.one2mp-toolbar-ip {
+    font-size: 0.7em;
+    font-family: var(--font-monospace);
+    color: var(--text-muted);
+    border: 1px solid var(--background-modifier-border);
+    padding: 0 6px;
+    border-radius: var(--radius-s);
+    background-color: var(--background-primary-alt);
+    user-select: none;
+    height: 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    white-space: nowrap;
+    box-sizing: border-box;
+    line-height: 1.2;
+    flex-shrink: 0;
+}
+.one2mp-toolbar-ip:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border-color: var(--interactive-accent);
+}
+
+/* Action Buttons inside the group */
+.one2mp-toolbar-btn.clickable-icon {
+    height: 24px;
+    width: 24px;
+    padding: 4px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+.one2mp-toolbar-btn.clickable-icon:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+/* Left Account Dropdown (Standalone) */
+.toolbar-group-left select {
+    /* Keep standalone style */
+    height: 32px !important;
+    line-height: 30px;
+    border: 1px solid var(--background-modifier-border) !important;
+    background-color: var(--background-primary-alt) !important;
+    border-radius: var(--radius-s) !important;
+    padding: 0 24px 0 8px !important;
+    box-sizing: border-box !important;
+    width: auto;
+    max-width: 200px;
+    text-overflow: ellipsis;
+}
+
+/* Adjust dropdown widths */
+.toolbar-group-right select {
+    max-width: 240px;
+}
+
+/* Hide the setting-item-name for actions in toolbar */
+.toolbar-actions-setting .setting-item-info {
+    display: none;
+}
+.toolbar-actions-setting.setting-item {
+    border: 1px solid var(--background-modifier-border);
+    padding: 0 4px; /* Padding around buttons */
+    background-color: var(--background-primary-alt);
+    border-radius: var(--radius-s);
+    height: 32px;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+/* Remove border/bg from the Theme Dropdown INSIDE the group to avoid double-boxing */
+.toolbar-actions-setting .dropdown {
+    border: none !important;
+    background-color: transparent !important;
+    height: 30px !important; /* Fit inside 32px container */
+    margin-right: 4px !important;
+}
+
+/* Action Buttons */
+.toolbar-actions-setting .clickable-icon {
+    height: 24px;
+    width: 24px;
+    padding: 4px;
+    border-radius: var(--radius-s);
+}
+
+.toolbar-actions-setting .setting-item-control {
+    gap: 2px;
+    display: flex;
+    align-items: center;
+}
+
+/* Toolbar Dual IP Display */
+.one2mp-toolbar-ip {
+    font-size: 0.7em; /* Smaller font for dual lines */
+    font-family: var(--font-monospace);
+    color: var(--text-muted);
+    border: 1px solid var(--background-modifier-border);
+    padding: 0 6px;
+    border-radius: var(--radius-s);
+    background-color: var(--background-primary-alt);
+    user-select: none;
+    height: 32px;
+    display: flex;
+    flex-direction: column; /* Stack vertically */
+    justify-content: center;
+    align-items: flex-start;
+    white-space: nowrap;
+    box-sizing: border-box;
+    line-height: 1.2;
+}
+.one2mp-toolbar-ip:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border-color: var(--interactive-accent);
+}
+
+.one2mp-ip-subrow {
+    display: flex;
+    width: 100%;
+    cursor: pointer;
+}
+.one2mp-ip-subrow:hover .value {
+    color: var(--text-accent);
+    text-decoration: underline;
+}
+.one2mp-ip-subrow .label {
+    opacity: 0.7;
+    margin-right: 4px;
+}
+
+.one2mp-settings .setting-item-control input[type="text"],
+.one2mp-settings .setting-item-control input[type="password"],
+.one2mp-settings .setting-item-control textarea,
+.one2mp-setting-wide .setting-item-control input[type="text"],
+.one2mp-setting-wide .setting-item-control input[type="password"],
+.one2mp-setting-wide .setting-item-control textarea {
+	width: 100%;
+    max-width: 100%;
+}
+
+/* ==========================================================================
+   Article Metadata Card (Header)
+   ========================================================================== */
+.one2mp-meta-card {
+    display: flex;
+    flex-direction: row; /* Side-by-side by default */
+    gap: 16px;
+    margin: 16px;
+    padding: 16px;
+    background-color: var(--one2mp-card-bg);
+    border-radius: var(--radius-m);
+    border: var(--one2mp-border);
+}
+
+/* Responsive adjustment for narrow views */
+@container (max-width: 600px) {
+    .one2mp-meta-card {
+        flex-direction: column;
+    }
+}
+
+/* --- Left: Cover Container --- */
+.one2mp-cover-container {
+    flex: 0 0 320px; /* Fixed width base */
+    max-width: 100%;
+    aspect-ratio: var(--one2mp-cover-ratio);
+    position: relative;
+    border-radius: var(--radius-s);
+    overflow: hidden;
+    background-color: var(--background-primary);
+    border: 2px dashed var(--text-faint); /* Empty state */
+}
+
+/* When image is present */
+.one2mp-cover-container.has-image {
+    border: none;
+}
+
+.one2mp-cover-container .cover-frame {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    cursor: grab;
+}
+
+.one2mp-cover-container .cover-frame.is-dragging {
+    cursor: grabbing;
+}
+
+.one2mp-cover-actions {
+    position: absolute;
+    right: 8px;
+    top: 8px;
+    display: flex;
+    gap: 6px;
+    z-index: 2;
+    pointer-events: auto;
+}
+
+.one2mp-cover-actions .one2mp-cover-reset {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.one2mp-cover-actions .one2mp-cover-reset svg {
+    width: 16px;
+    height: 16px;
+}
+
+.one2mp-cover-image-wrap {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    will-change: transform;
+}
+
+.one2mp-cover-image {
+    display: block;
+    user-select: none;
+    -webkit-user-drag: none;
+    max-width: none;
+    max-height: none;
+}
+
+.one2mp-cover-container canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.one2mp-cover-hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85em;
+    pointer-events: none;
+    width: 80%;
+}
+
+.one2mp-cover-container.has-image .one2mp-cover-hint {
+    display: none; /* Hide hint when image exists */
+}
+
+.one2mp-cover-container .image-on-dragover {
+    background-color: var(--background-modifier-active-hover);
+    border-color: var(--interactive-accent);
+}
+
+/* --- Right: Digest Container --- */
+.one2mp-digest-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.one2mp-digest-input {
+    width: 100%;
+    height: 100%;
+    min-height: 100px;
+    resize: none;
+    border: none;
+    background: transparent;
+    padding: 0;
+    font-family: var(--font-text);
+    font-size: 0.95em;
+    line-height: 1.5;
+}
+.one2mp-digest-input:focus {
+    box-shadow: none;
+}
+
+/* ==========================================================================
+   Article Content Area
+   ========================================================================== */
+.one2mp-main-scroll-area {
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.one2mp-preview-title {
+    text-align: center;
+    font-size: 1.5em;
+    font-weight: 700;
+    margin: 10px 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--text-accent);
+    display: inline-block;
+    align-self: center;
+}
+
+.render-container {
+    padding: 20px 40px;
+    max-width: 800px; /* WeChat article max width approx */
+    margin: 0 auto;
+    width: 100%;
+}
+
+.one2mp-article {
+    /* Shadow DOM container styling if needed, otherwise transparent */
+}
+
+/* ==========================================================================
+   Publish Config Modal
+   ========================================================================== */
+.one2mp-publish-modal .modal-content {
+    padding: 20px;
+}
+
+.one2mp-config-section {
+    border: var(--one2mp-border);
+    border-radius: var(--radius-m);
+    margin-bottom: 16px;
+    background-color: var(--background-primary);
+}
+
+.one2mp-config-section summary {
+    padding: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: var(--one2mp-border);
+    background-color: var(--background-secondary);
+}
+
+.one2mp-config-content {
+    padding: 16px;
+}
+
+.one2mp-card-preview {
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: center;
+}
+
+.one2mp-parser-actions {
+    margin-top: 8px;
+    text-align: right;
+}
+
+.one2mp-manual-edit {
+    margin-top: 16px;
+    border-top: 1px dashed var(--background-modifier-border);
+    padding-top: 16px;
+}
+.one2mp-manual-edit summary {
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin-bottom: 10px;
+    color: var(--text-accent);
+}
+
+/* MP Card Preview Style (Mockup) */
+.one2mp-mpcard-wrapper {
+	background-color: var(--background-secondary);
+	padding: 12px 16px;
+	border-radius: 8px;
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    align-items: center;
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+.one2mp-mpcard-headimg {
+	width: 50px !important;
+	height: 50px !important;
+	border-radius: 50% !important;
+    object-fit: cover;
+    margin-right: 12px;
+}
+
+.one2mp-mpcard-info {
+    flex: 1;
+    overflow: hidden;
+}
+
+.one2mp-mpcard-nickname {
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--text-normal);
+    margin-bottom: 4px;
+}
+
+.one2mp-mpcard-signature {
+	font-size: 13px;
+	color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   Spinner (Preserved)
+   ========================================================================== */
+.spinner-container {
+	display: none;
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	justify-content: center;
+	align-items: center;
+	flex-direction: column;
+    z-index: 9999;
+}
+
+.spinner-dots {
+	position: relative;
+	width: 120px;
+	height: 120px;
+	animation: spin 1.2s linear infinite;
+}
+
+.spinner-dot {
+	position: absolute;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	animation: pulse 1.2s ease-in-out infinite;
+}
+
+/* Refined Spinner Colors using Vars if possible or keep distinct */
+.spinner-dot1 { background: #FF3CAC; top: 0; left: 52px; animation-delay: 0s; }
+.spinner-dot2 { background: #FF884B; top: 17px; left: 87px; animation-delay: 0.1s; }
+.spinner-dot3 { background: #FFD700; top: 52px; left: 104px; animation-delay: 0.2s; }
+.spinner-dot4 { background: #32CD32; top: 87px; left: 87px; animation-delay: 0.3s; }
+.spinner-dot5 { background: #00CFFF; top: 104px; left: 52px; animation-delay: 0.4s; }
+.spinner-dot6 { background: #6A5ACD; top: 87px; left: 17px; animation-delay: 0.5s; }
+.spinner-dot7 { background: #8A2BE2; top: 52px; left: 0px; animation-delay: 0.6s; }
+.spinner-dot8 { background: #FF69B4; top: 17px; left: 17px; animation-delay: 0.7s; }
+
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+@keyframes pulse { 0%, 100% { transform: scale(0.85); opacity: 0.6; } 50% { transform: scale(1.2); opacity: 1; } }
+
+.spinner-text {
+  margin-top: -70px;
   font-size: 14px;
-  color: rgba(0, 0, 0, 0.55);
-}
-.note-mpcard-foot {
-  margin-top: 20px;
-  padding-top: 10px;
-  border-top: 1px solid #ececec;
-  font-size: 14px;
-  color: rgba(0, 0, 0, 0.3);
+  color: var(--text-on-accent);
+  text-align: center;
 }
 
-.loading-wrapper {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  align-items: center;
-  justify-content: center;
+/* ==========================================================================
+   Hidden Render Areas
+   ========================================================================== */
+.one2mp-render-preview {
+	position: absolute;
+	left: -100000px;
+	top: 0;
+	width: 1200px;
+	visibility: hidden;
 }
 
-.loading-spinner {
-  width: 50px;                    /* 可调整大小 */
-  height: 50px;
-  border: 4px solid #fcd6ff;      /* 底色，浅灰 */
-  border-top: 4px solid #bb0cdf;  /* 主色，蓝色顶部产生旋转感 */
-  border-radius: 50%;             /* 圆形 */
-  animation: spin 1s linear infinite; /* 旋转动画 */
+.one2mp-render-preview.one2mp-render-preview-visible {
+	visibility: visible;
 }
 
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+.one2mp-mermaid-visible {
+	visibility: visible;
+	display: block;
+}
+
+.one2mp-domtoimage-sandbox {
+	position: fixed;
+	visibility: hidden;
 }

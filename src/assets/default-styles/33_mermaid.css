@@ -1,0 +1,21 @@
+.one2mp .mermaid {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.one2mp .mermaid image {
+    width: 100%;
+    margin: auto;
+}
+
+.one2mp .mermaid img {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    display: block;
+}

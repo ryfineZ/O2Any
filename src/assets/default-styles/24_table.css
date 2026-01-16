@@ -1,0 +1,112 @@
+:root {
+	--table-border-color: var(--one2mp-border-color, #454545);
+	--table-border-width: var(--one2mp-border-width, 1px);
+	--table-border-style: var(--one2mp-border-style, solid);
+	--table-padding: var(--one2mp-padding, 16px);
+	--table-margin: var(--one2mp-margin, 0);
+	--table-background-color: var(--one2mp-bg, #fff);
+	--table-background-color-alt: #eaeaea;
+	--table-background-color-hover: var(--one2mp-bg-alt, #0d5c7e);
+	--table-font-size: var(--one2mp-font-size, 16px);
+	--table-font-weight: var(--one2mp-font-weight, 400);
+	--table-line-height: var(--one2mp-line-height, 1.4);
+	--table-text-align: var(--one2mp-text-align, left);
+	--table-text-indent: var(--one2mp-text-indent, 0);
+	--table-text-color: var(--one2mp-text-color, #333);
+	--table-header-color: var(--one2mp-header-color, #333);
+	--table-header-background-color: #b9b9b9;
+	--table-header-font-weight: var(--one2mp-header-font-weight, 600);
+	--table-header-line-height: var(--one2mp-header-line-height, 1.5);
+	--table-header-text-align: var(--one2mp-header-text-align, left);
+	--table-min-width: var(--one2mp-min-width, 100px);
+	--table-container-overflow: auto;
+	--tabble-radius: 0;
+	--table-width: max-content;
+	--tabble-white-space: nowrap;
+	--table-layout: fixed;
+	--table-collapse: collapse;
+	--table-td-max-width: 200px;
+	--table-td-min-width: 50px;
+	--table-td-text-align: left;
+	--table-td-word-break: break-word;
+	--table-td-white-space: normal;
+}
+
+.one2mp .table-container {
+	display: flex;
+	width: 100%;
+	overflow-x: var(--table-container-overflow);
+	padding: 1px;
+	box-shadow: 0 4px 8px var(--one2mp-shadow, (0, 0, 0, 0.1));
+}
+
+.one2mp table {
+	border-collapse: var(--table-collapse);
+	width: var(--table-width);
+	border-color: var(--table-border-color);
+	white-space: var(--tabble-white-space);
+	table-layout: var(--table-layout);
+}
+
+.one2mp thead tr {
+	background-color: var(--table-header-background-color);
+	color: var(--table-header-color);
+	text-align: var(--table-header-text-align);
+	line-height: var(--table-header-line-height);
+	font-weight: var(--table-header-font-weight);
+}
+ 
+.one2mp thead th {
+	background-color: var(--table-header-background-color);
+	color: var(--table-header-color);
+}
+
+/* table body text */
+.one2mp tbody tr{
+	line-height: var(--table-line-height, 1.5);
+	text-align: var(--table-text-align, left);
+	background-color: var(--table-background-color); 
+	color: var(--table-text-color);
+	font-size: var(--table-font-size);
+	font-weight: var(--table-font-weight);
+}
+/* border */
+.one2mp th,
+.one2mp tr,
+.one2mp td {
+	border-color: var(--table-border-color);
+	border-width: var(--table-border-width);
+	border-style: solid;
+	max-width: var(--table-td-max-width);
+	min-width: var(--table-td-min-width);
+	text-align: var(--table-td-text-align);
+	word-break: var(--table-td-word-break);
+	white-space: var(--table-td-white-space);
+}
+
+.one2mp td {
+	background-color: var(--table-background-color);
+	color: var(--table-text-color);
+}
+
+.one2mp tr:nth-child(even) {
+	background-color: var(--table-background-color-alt);
+	/* 偶数行背景色 */;
+}
+
+.one2mp tr:nth-child(even) td {
+	background-color: var(--table-background-color-alt);
+}
+
+.one2mp thead tr:first-child th:first-child {
+	border-top-left-radius: var(--tabble-radius);
+}
+.one2mp thead tr:first-child th:last-child {
+	border-top-right-radius: var(--tabble-radius);
+}
+.one2mp tbody tr:last-child td:first-child {
+	border-bottom-left-radius: var(--tabble-radius);
+}
+.one2mp tbody tr:last-child td:last-child {
+	border-bottom-right-radius: var(--tabble-radius);
+}

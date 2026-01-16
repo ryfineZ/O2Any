@@ -1,27 +1,7 @@
-# vscode
-.vscode 
-
-# Intellij
-*.iml
-.idea
-
-# npm
-node_modules
-
-# Don't include the compiled main.js file in the repo.
-# They should be uploaded to GitHub releases instead.
-main.js
-
-# Exclude sourcemaps
-*.map
-
-# obsidian
-data.json
-
-# Release 压缩包
-release/*.zip
-
-# Exclude macOS Finder (System Explorer) View States
+node_modules/
+dist/
+console_log/
 .DS_Store
-
-assets
+npm-debug.log*
+yarn-error.log*
+.env*

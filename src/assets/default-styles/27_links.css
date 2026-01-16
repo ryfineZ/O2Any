@@ -1,0 +1,22 @@
+:root{
+	--link-color: var(--one2mp-secondary, rgb(0, 102, 204));
+	--link-hover-color: var(--one2mp-primary-light, rgb(0, 128, 255));
+	--link-active-color: var(--one2mp-primary, rgb(0, 128, 255));
+}
+
+
+.one2mp a {
+	font-weight: 500;
+	text-decoration: none;
+	color: var(--link-color, rgb(0, 102, 204));
+}
+
+.one2mp a:hover,
+.one2mp a:active {
+	border-bottom: 1.5px solid var(--link-color, rgb(0, 102, 204));
+	color: var(--link-hover-color, rgb(0, 128, 255));
+}
+
+.one2mp a:before {
+	content: "⇲";
+}

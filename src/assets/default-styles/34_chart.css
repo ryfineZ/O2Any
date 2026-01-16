@@ -1,0 +1,13 @@
+.one2mp .charts {
+    display: flex;
+    flex-direction: column;
+    padding: 3px;
+    border: solid 1px #ccc;
+    border-radius: 3px;
+}
+
+.one2mp .charts image
+ {
+    width: 100%;
+    margin: auto;
+}
