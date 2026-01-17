@@ -4,8 +4,11 @@
 import {
 	FileSystemAdapter,
 	debounce,
+	Modal,
 	Notice,
 	Platform,
+	Setting,
+	TextComponent,
 	TextAreaComponent,
 	TFile,
 } from "obsidian";
@@ -16,6 +19,7 @@ import { fetchImageBlob } from "src/utils/utils";
 import { WechatClient } from "src/wechat-api/wechat-client";
 import { MaterialMeidaItem } from "src/wechat-api/wechat-types";
 import { $t } from "src/lang/i18n";
+import { FileSuggest } from "src/utils/file-suggest";
 import {
 	FRONTMATTER_ALIASES,
 	FRONTMATTER_CANONICAL_KEYS,
@@ -98,6 +102,16 @@ export class MPArticleHeader {
 	private localDraftmanager: LocalDraftManager;
 	private readonly coverFrontmatterKey = FRONTMATTER_CANONICAL_KEYS.cover;
 	private readonly coverVaultPrefix = "vault:";
+	private readonly coverImageExtensions = [
+		"png",
+		"jpg",
+		"jpeg",
+		"gif",
+		"webp",
+		"bmp",
+		"svg",
+		"tiff",
+	];
 	private rootEl: HTMLElement;
 	constructor(plugin: One2MpPlugin, containerEl: HTMLElement) {
 		this.plugin = plugin;
@@ -188,6 +202,16 @@ export class MPArticleHeader {
         // Empty state hint
         coverContainer.createDiv({ cls: "one2mp-cover-hint", text: $t("views.article-header.cover-image-description") });
         this.coverFrame = this.createCoverFrame(coverContainer);
+		if (Platform.isMobile) {
+			const action = coverContainer.createDiv({ cls: "one2mp-cover-mobile-action" });
+			const btn = action.createEl("button", {
+				cls: "one2mp-cover-mobile-button",
+				text: $t("views.article-header.cover-image-mobile-button"),
+			});
+			btn.addEventListener("click", () => {
+				this.openMobileCoverModal();
+			});
+		}
         // Right: Digest / Meta Container
         const metaContainer = this.rootEl.createDiv({ cls: "one2mp-digest-container" });
         
@@ -210,7 +234,7 @@ export class MPArticleHeader {
         });
 	}
     
-    private async saveDigestToFrontmatter(text: string) {
+	private async saveDigestToFrontmatter(text: string) {
         const file = this.getActiveMarkdownFile();
         if (!file) return;
         await this.plugin.app.fileManager.processFrontMatter(file, (fm) => {
@@ -437,6 +461,37 @@ export class MPArticleHeader {
 			this.setCoverImage(this.cover_image || "");
 		}
 		coverframe.removeClass("image-on-dragover");
+	}
+
+	private openMobileCoverModal() {
+		new MobileCoverModal(
+			this.plugin,
+			this.coverImageExtensions,
+			async (payload) => {
+				const { filePath, url } = payload;
+				let coverRef: string | null = null;
+				if (filePath) {
+					coverRef = `${this.coverVaultPrefix}${filePath}`;
+				} else if (url) {
+					coverRef = url;
+				}
+				await this.applyCoverRef(coverRef);
+			}
+		).open();
+	}
+
+	private async applyCoverRef(coverRef: string | null) {
+		const coverUrl = coverRef ? this.resolveCoverUrl(coverRef) : "";
+		if (this.activeLocalDraft) {
+			this.activeLocalDraft.cover_image_url = coverRef || "";
+			this.activeLocalDraft.thumb_media_id = undefined;
+			await this.localDraftmanager.setDraft(this.activeLocalDraft);
+		}
+		this.coverImageRef = coverRef;
+		this.cover_image = coverUrl;
+		await this.resetCoverCropState(coverRef);
+		await this.saveCoverToFrontmatter(this.coverImageRef);
+		this.setCoverImage(this.cover_image || "");
 	}
 	
 	setCoverImage(url: string | null) {
@@ -719,5 +774,76 @@ export class MPArticleHeader {
 		} else {
 			this.setCoverImageXY();
 		}
+	}
+}
+
+type MobileCoverPayload = {
+	filePath: string | null;
+	url: string | null;
+};
+
+class MobileCoverModal extends Modal {
+	private fileInput: TextComponent;
+	private urlInput: TextComponent;
+
+	constructor(
+		private plugin: One2MpPlugin,
+		private imageExtensions: string[],
+		private onSubmit: (payload: MobileCoverPayload) => void
+	) {
+		super(plugin.app);
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.createEl("h3", {
+			text: $t("views.article-header.cover-image-mobile-title"),
+		});
+
+		const fileSetting = new Setting(contentEl)
+			.setName($t("views.article-header.cover-image-mobile-vault"))
+			.setDesc($t("views.article-header.cover-image-mobile-vault-desc"));
+		fileSetting.addText((text) => {
+			this.fileInput = text;
+			this.fileInput.setPlaceholder($t("views.article-header.cover-image-mobile-vault-placeholder"));
+			new FileSuggest(this.plugin.app, this.fileInput.inputEl, this.imageExtensions);
+		});
+
+		const urlSetting = new Setting(contentEl)
+			.setName($t("views.article-header.cover-image-mobile-url"))
+			.setDesc($t("views.article-header.cover-image-mobile-url-desc"));
+		urlSetting.addText((text) => {
+			this.urlInput = text;
+			this.urlInput.setPlaceholder("https://");
+		});
+
+		const buttonRow = contentEl.createDiv("modal-button-container");
+		buttonRow.createEl("button", { text: $t("modals.confirm") }).addEventListener("click", () => {
+			const filePath = this.fileInput?.getValue().trim();
+			const url = this.urlInput?.getValue().trim();
+			if (!filePath && !url) {
+				new Notice($t("views.article-header.cover-image-mobile-required"));
+				return;
+			}
+			let resolvedFile: string | null = null;
+			if (filePath) {
+				const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
+				if (!(file instanceof TFile)) {
+					new Notice($t("views.article-header.cover-image-mobile-invalid"));
+					return;
+				}
+				resolvedFile = file.path;
+			}
+			this.onSubmit({ filePath: resolvedFile, url: url || null });
+			this.close();
+		});
+		buttonRow.createEl("button", { text: $t("modals.cancel") }).addEventListener("click", () => {
+			this.close();
+		});
+	}
+
+	onClose() {
+		this.contentEl.empty();
 	}
 }

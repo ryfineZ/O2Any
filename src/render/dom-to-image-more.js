@@ -1,4 +1,3 @@
-/* eslint-disable -- Third-party dom-to-image library uses DOM APIs needed for rendering. */
 (function (global) {
   'use strict';
 
@@ -461,83 +460,21 @@
 
             const propertyName = '-webkit-background-clip';
             const propertyValue = sourceComputedStyles.getPropertyValue(propertyName);
-            if (propertyValue !== 'border-box') {
-              const styleElement = document.createElement('style');
-              const className = util.uid();
-              const currentClass = targetElement.getAttribute('class') || '';
-              targetElement.setAttribute('class', `${currentClass} ${className}`);
-              styleElement.append(document.createTextNode(`.${className}{${propertyName}: ${propertyValue};}`));
-              targetElement.prepend(styleElement);
-
+            if (propertyValue && propertyValue !== 'border-box') {
+              setStyleProperty(targetElement.style, propertyName, propertyValue);
             }
           }
         }
       }
 
       function clonePseudoElements() {
-        const cloneClassName = util.uid();
-
-        for (const element of [':before', ':after']) {
-          clonePseudoElement(element);
-        }
-
-        function clonePseudoElement(element) {
-          const style = getComputedStyle(original, element);
-          const content = style.getPropertyValue('content');
-
-          if (content === '' || content === 'none') {
-            return;
-          }
-
-          const currentClass = clone.getAttribute('class') || '';
-          clone.setAttribute('class', `${currentClass} ${cloneClassName}`);
-
-          const styleElement = document.createElement('style');
-          styleElement.append(formatPseudoElementStyle());
-          clone.append(styleElement);
-
-          function formatPseudoElementStyle() {
-            const selector = `.${cloneClassName}:${element}`;
-            const cssText = style.cssText
-              ? formatCssText()
-              : formatCssProperties();
-
-            return document.createTextNode(`${selector}{${cssText}}`);
-
-            function formatCssText() {
-              return `${style.cssText} content: ${content};`;
-            }
-
-            function formatCssProperties() {
-              const styleText = fixPseudoStyle(util.asArray(style))
-                .map(formatProperty)
-                .join('; ');
-              return `${styleText};`;
-
-              function fixPseudoStyle(properties) {
-                for (let name of ['counter-increment', 'counter-reset', 'counter-set']) {
-                  if (properties.indexOf(name) < 0 && !isUndefined(style.getPropertyValue(name))) {
-                    properties.push(name);
-                  }
-                }
-                return properties;
-              }
-
-              function formatProperty(name) {
-                const propertyValue = style.getPropertyValue(name);
-                const propertyPriority = style.getPropertyPriority(name)
-                  ? ' !important'
-                  : '';
-                return `${name}: ${propertyValue}${propertyPriority}`;
-              }
-            }
-          }
-        }
+        return;
       }
 
       function copyUserInput() {
         if (util.isHTMLTextAreaElement(original)) {
-          clone.innerHTML = original.value;
+          clone.value = original.value;
+          clone.textContent = original.value;
         }
 
         if (util.isHTMLInputElement(original)) {
@@ -563,15 +500,7 @@
   }
 
   function embedFonts(node) {
-    return fontFaces.resolveAll().then(cssText => {
-      if (cssText !== '') {
-        const styleNode = document.createElement('style');
-        node.append(styleNode);
-        styleNode.append(document.createTextNode(cssText));
-      }
-
-      return node;
-    });
+    return Promise.resolve(node);
   }
 
   function inlineImages(node) {
@@ -945,7 +874,7 @@
     }
 
     function escapeRegEx(string) {
-      return string.replaceAll(/([.*+?^${}()|[]\/\\])/g, '\\$1');
+      return string.replaceAll(/([.*+?^${}()|[\]\/\\])/g, '\\$1');
     }
 
     function delay(ms) {
@@ -969,12 +898,19 @@
     }
 
     function escapeXhtml(string) {
-      return string
+      const escaped = string
         .replaceAll('%', '%25')
         .replaceAll('#', '%23')
-        .replaceAll('\n', '%0A')
-        // eslint-disable-next-line no-control-regex -- allow control chars in CSS escape parsing
-        .replaceAll(/[\u0000-\u001F\u007F]/g, ''); // remove control characters and DEL characters
+        .replaceAll('\n', '%0A');
+      let result = '';
+      for (let i = 0; i < escaped.length; i++) {
+        const code = escaped.charCodeAt(i);
+        if (code <= 0x1f || code === 0x7f) {
+          continue;
+        }
+        result += escaped[i];
+      }
+      return result;
     }
 
     function width(node) {
@@ -1444,25 +1380,18 @@
 
     function escapeHTML(unsafeText) {
       if (unsafeText) {
-        const div = document.createElement('div');
-        div.innerText = unsafeText;
-        return div.innerHTML;
+        return unsafeText
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
       }
 
       return '';
     }
 
     function tryTechniques(sandbox, doctype, charset, title) {
-      // try the good old-fashioned document write with all the correct attributes set
-      try {
-        sandbox.contentWindow.document.write(
-          `${doctype}<html><head><meta charset='${charset}'><title>${title}</title></head><body></body></html>`,
-        );
-        return sandbox.contentWindow;
-      } catch {
-        // swallow exception and fall through to next technique
-      }
-
       const metaCharset = document.createElement('meta');
       metaCharset.setAttribute('charset', charset);
 
@@ -1471,7 +1400,8 @@
         const sandboxDocument
           = document.implementation.createHTMLDocument(title);
         sandboxDocument.head.append(metaCharset);
-        const sandboxHTML = doctype + sandboxDocument.documentElement.outerHTML;
+        const serializer = new XMLSerializer();
+        const sandboxHTML = doctype + serializer.serializeToString(sandboxDocument.documentElement);
         sandbox.setAttribute('srcdoc', sandboxHTML);
         return sandbox.contentWindow;
       } catch {

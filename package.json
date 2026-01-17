@@ -10,7 +10,6 @@
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"test:theme": "ts-node src/theme/test.ts",
 		"test:ds": "ts-node  src/theme/ds-theme.ts",
-		"scan:themes": "ts-node themes/scanThemes.ts",
 		"hello": "ts-node themes/hello.ts"
 	},
 	"keywords": [],

@@ -453,6 +453,26 @@ CSS for one2mp plugin.
     border-color: var(--interactive-accent);
 }
 
+.one2mp-cover-mobile-action {
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+    z-index: 2;
+}
+
+.one2mp-cover-mobile-button {
+    border-radius: var(--radius-s);
+    padding: 6px 10px;
+    font-size: 12px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--interactive-normal);
+    color: var(--text-normal);
+}
+
+.one2mp-cover-mobile-button:hover {
+    background: var(--interactive-hover);
+}
+
 /* --- Right: Digest Container --- */
 .one2mp-digest-container {
     flex: 1;
