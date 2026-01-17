@@ -240,6 +240,7 @@
     "theme-manager": {
       "default-theme": "默认主题",
       "download-predefined-custom-themes": "下载定制主题",
+      "download-themes-mobile-not-supported": "移动端暂不支持主题下载。",
       "error-downloading-theme": "下载主题出错",
       "error-downloading-themes": "下载主题出错。",
       "failed-to-fetch-themes-json-themesrespon": "获取themes.json失败：{0}",

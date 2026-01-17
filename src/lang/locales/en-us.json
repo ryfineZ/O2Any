@@ -232,6 +232,7 @@
     "theme-manager": {
       "default-theme": "Default theme",
       "download-predefined-custom-themes": "Download predefined custom themes",
+      "download-themes-mobile-not-supported": "Theme download is not supported on mobile.",
       "error-downloading-theme": "Error downloading theme",
       "error-downloading-themes": "Error downloading themes.",
       "failed-to-fetch-themes-json-themesrespon": "Failed to fetch themes.json: {0}",

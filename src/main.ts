@@ -9,6 +9,7 @@ import {
 	Editor,
 	EventRef,
 	Notice,
+	Platform,
 	Plugin,
 	WorkspaceLeaf,
 } from "obsidian";
@@ -29,7 +30,6 @@ import { PreviewPanel, VIEW_TYPE_ONE2MP_PREVIEW } from "./views/previewer";
 import { WechatClient } from "./wechat-api/wechat-client";
 import { Spinner } from "./views/spinner";
 import { MpcardInsertModal } from "./modals/mpcard-insert-modal";
-import { ThemeManager } from "./theme/theme-manager";
 import { WechatRender } from "./render/wechat-render";
 
 // 插件默认配置，缺失字段时用于兜底
@@ -398,7 +398,12 @@ export default class One2MpPlugin extends Plugin {
 		});
 		this.app.workspace.getLeavesOfType(VIEW_TYPE_ONE2MP_PREVIEW).forEach((leaf) => leaf.detach());
 		WechatClient.resetInstance();
-		ThemeManager.resetInstance();
+		if (!Platform.isMobile) {
+			void (async () => {
+				const { ThemeManager } = await import("./theme/theme-manager");
+				ThemeManager.resetInstance();
+			})();
+		}
 		LocalDraftManager.resetInstance();
 		WechatRender.resetInstance();
 	}

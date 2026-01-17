@@ -14,7 +14,7 @@ import {
 	TFile,
 } from "obsidian";
 import One2MpPlugin from "src/main";
-import { ThemeManager } from "src/theme/theme-manager";
+import type { ThemeManager } from "src/theme/theme-manager";
 import { $t } from "src/lang/i18n";
 import { FolderSuggest } from "src/utils/folder-suggest";
 import { FileSuggest } from "src/utils/file-suggest";
@@ -363,7 +363,18 @@ export class One2MpSettingTab extends PluginSettingTab {
 						$t("views.theme-manager.download-predefined-custom-themes")
 					)
 					.onClick(() => {
-						void ThemeManager.getInstance(this.plugin).downloadThemes();
+						if (Platform.isMobile) {
+							new Notice(
+								$t("views.theme-manager.download-themes-mobile-not-supported")
+							);
+							return;
+						}
+						void (async () => {
+							const { ThemeManager } = await import(
+								"src/theme/theme-manager"
+							);
+							void ThemeManager.getInstance(this.plugin).downloadThemes();
+						})();
 					});
 			});
 	}

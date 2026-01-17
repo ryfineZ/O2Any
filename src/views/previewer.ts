@@ -11,6 +11,7 @@ import {
 	ItemView,
 	MarkdownView,
 	Notice,
+	Platform,
 	sanitizeHTMLToDom,
 	Setting,
 	setIcon,
@@ -33,11 +34,10 @@ import { WechatRender } from "src/render/wechat-render";
 import { ResourceManager } from "../assets/resource-manager";
 import { WechatClient } from "../wechat-api/wechat-client";
 import { MPArticleHeader } from "./mp-article-header";
-import { ThemeManager } from "../theme/theme-manager";
-import { ThemeSelector } from "../theme/theme-selector";
 import { WebViewModal } from "./webview";
 import { PublishConfigModal } from "src/modals/publish-config-modal";
 import { DualIps } from "src/utils/ip-address";
+import type { ThemeSelector } from "../theme/theme-selector";
 
 export const VIEW_TYPE_ONE2MP_PREVIEW = "one2mp-article-preview";
 export interface ElectronWindow extends Window {
@@ -65,7 +65,8 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 	currentView: EditorView;
 	private wechatClient: WechatClient;
 	private plugin: One2MpPlugin;
-	private themeSelector: ThemeSelector;
+	private themeSelector: ThemeSelector | null = null;
+	private themeManagerModule: typeof import("../theme/theme-manager") | null = null;
 	private allowRender = false;
 	private initialRenderScheduled = false;
 	private debouncedRender = debounce(async () => {
@@ -108,10 +109,10 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		super(leaf);
 		this.plugin = plugin;
 		this.wechatClient = WechatClient.getInstance(this.plugin);
-		this.themeSelector = new ThemeSelector(plugin);
 	}
 
 	async onOpen() {
+		await this.ensureThemeSelector();
 		this.buildUI();
 		this.startListen();
 		this.isActive = true;
@@ -128,7 +129,7 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 				}
 			)
 		);
-		this.themeSelector.startWatchThemes();
+		this.themeSelector?.startWatchThemes();
 		this.messageUnsubscribes.push(
 			this.plugin.messageService.registerListener(
 				"custom-theme-changed",
@@ -157,6 +158,24 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 				setTimeout(run, 300);
 			}
 		});
+	}
+
+	private async ensureThemeSelector() {
+		if (Platform.isMobile || this.themeSelector) {
+			return;
+		}
+		const { ThemeSelector } = await import("../theme/theme-selector");
+		this.themeSelector = new ThemeSelector(this.plugin);
+	}
+
+	private async getThemeManager() {
+		if (Platform.isMobile) {
+			return null;
+		}
+		if (!this.themeManagerModule) {
+			this.themeManagerModule = await import("../theme/theme-manager");
+		}
+		return this.themeManagerModule.ThemeManager;
 	}
 
 	getArticleProperties() {
@@ -264,7 +283,12 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 
         // 1. Theme Dropdown
         const themeDropdown = new DropdownComponent(actionsGroup);
-        void this.themeSelector.dropdown(themeDropdown);
+        if (this.themeSelector) {
+            void this.themeSelector.dropdown(themeDropdown);
+        } else {
+            themeDropdown.addOption("--default--", $t("views.theme-manager.default-theme"));
+            themeDropdown.setDisabled(true);
+        }
 
         // 2. Action Buttons
         const createBtn = (icon: string, tooltip: string, action: () => void) => {
@@ -430,7 +454,10 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		// 发送草稿前先应用主题与上传本地/外链资源
 		const root = this.articleDiv.firstElementChild as HTMLElement | null;
 		if (root) {
-			await ThemeManager.getInstance(this.plugin).applyTheme(root);
+			const ThemeManager = await this.getThemeManager();
+			if (ThemeManager) {
+				await ThemeManager.getInstance(this.plugin).applyTheme(root);
+			}
 		}
 		await uploadSVGs(this.articleDiv, this.plugin.wechatClient);
 		await uploadCanvas(this.articleDiv, this.plugin.wechatClient);
@@ -570,7 +597,12 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		const apply = () => {
 			if (!element.isConnected) return;
 			// 渲染完成后再应用主题，避免频繁重排
-			void ThemeManager.getInstance(this.plugin).applyTheme(element);
+			void (async () => {
+				const ThemeManager = await this.getThemeManager();
+				if (ThemeManager) {
+					await ThemeManager.getInstance(this.plugin).applyTheme(element);
+				}
+			})();
 		};
 		const requestIdle = window.requestIdleCallback;
 		if (typeof requestIdle === "function") {
