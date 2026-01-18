@@ -108,7 +108,7 @@ CSS for one2mp plugin.
    ========================================================================== */
 .one2mp-preview-toolbar {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     padding: 8px;
     border-bottom: var(--one2mp-border);
@@ -124,7 +124,7 @@ CSS for one2mp plugin.
     display: flex;
     align-items: center;
     gap: 4px;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-width: 120px;
 }
 
@@ -132,9 +132,10 @@ CSS for one2mp plugin.
     display: flex;
     align-items: center;
     gap: 8px;
-    flex: 1 1 auto; /* Allow to grow and take its own row */
-    justify-content: flex-end; /* Align to right on the current line */
+    flex: 0 1 auto;
+    justify-content: flex-start;
     flex-wrap: wrap; /* Internal wrap for buttons if very narrow */
+    margin-left: 8px;
 }
 
 .toolbar-group-center {
@@ -186,8 +187,11 @@ CSS for one2mp plugin.
     height: 30px !important;
     margin: 0 !important;
     box-shadow: none !important;
-    max-width: 140px;
+    max-width: 120px;
     min-width: 60px;
+    width: 120px;
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 
 /* IP Badge */
@@ -344,20 +348,36 @@ CSS for one2mp plugin.
 	.one2mp-toolbar-actions-group {
 		flex: 1 1 auto;
 		min-width: 0;
+		height: 36px;
+		padding: 0 4px;
+		gap: 4px;
 	}
 
 	.one2mp-toolbar-actions-group select {
-		max-width: 120px;
+		max-width: 140px;
+		width: 140px;
+		height: 34px !important;
 	}
 
 	.one2mp-toolbar-btn.clickable-icon {
-		height: 22px;
-		width: 22px;
-		padding: 3px;
+		height: 30px;
+		width: 30px;
+		padding: 4px;
 	}
 
 	.one2mp-toolbar-ip {
 		display: none;
+	}
+
+	.one2mp-settings .clickable-icon,
+	.one2mp-settings .setting-item-control button {
+		min-width: 32px;
+		min-height: 32px;
+		padding: 6px 10px;
+	}
+
+	.one2mp-settings .setting-item-control .clickable-icon {
+		padding: 6px;
 	}
 }
 
