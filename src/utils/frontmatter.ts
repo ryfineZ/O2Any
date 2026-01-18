@@ -1,25 +1,43 @@
-import { App } from 'obsidian';
+type FrontmatterResult = {
+	data: Record<string, string>;
+	content: string;
+};
 
-export function getFrontmatter(app: App): Record<string, unknown> | null {
-    const cache = app.metadataCache.getCache(''); 
-    return cache?.frontmatter || null;
-}
+const stripQuotes = (value: string) => {
+	const trimmed = value.trim();
+	if (
+		(trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+		(trimmed.startsWith("'") && trimmed.endsWith("'"))
+	) {
+		return trimmed.slice(1, -1);
+	}
+	return trimmed;
+};
 
-export function setFrontmatter(
-	app: App,
-	content: string,
-	properties: Record<string, unknown>
-): string {
-    const cache = app.metadataCache.getCache('');
-    const existingFrontmatter = cache?.frontmatter || {};
-    const updatedFrontmatter = { ...existingFrontmatter, ...properties };
-    
-    const frontmatterString = Object.entries(updatedFrontmatter)
-        .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
-        .join('\n');
-    
-    if (content.startsWith('---')) {
-        return content.replace(/^---\n[\s\S]*?\n---/, `---\n${frontmatterString}\n---`);
-    }
-    return `---\n${frontmatterString}\n---\n${content}`;
-}
+export const parseFrontmatter = (markdown: string): FrontmatterResult => {
+	if (!markdown.startsWith("---")) {
+		return { data: {}, content: markdown };
+	}
+	const endIndex = markdown.indexOf("\n---", 3);
+	if (endIndex === -1) {
+		return { data: {}, content: markdown };
+	}
+	const raw = markdown.slice(3, endIndex).trim();
+	const rest = markdown.slice(endIndex + 4);
+	const content = rest.replace(/^\r?\n/, "");
+	const data: Record<string, string> = {};
+	if (raw) {
+		for (const line of raw.split(/\r?\n/)) {
+			const match = line.match(/^([^:#]+):\s*(.*)$/);
+			if (!match) {
+				continue;
+			}
+			const key = match[1].trim();
+			const value = stripQuotes(match[2]);
+			if (key) {
+				data[key] = value;
+			}
+		}
+	}
+	return { data, content };
+};

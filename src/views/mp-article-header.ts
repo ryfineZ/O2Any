@@ -283,6 +283,28 @@ export class MPArticleHeader {
 		return relative.replace(/\\/g, "/");
 	}
 
+	private getActiveRootFolder(): string | null {
+		const file = this.getActiveMarkdownFile();
+		if (!file) {
+			return null;
+		}
+		const parts = file.path.split("/");
+		if (parts.length <= 1) {
+			return null;
+		}
+		return parts[0] || null;
+	}
+
+	private getVaultPathCandidates(vaultPath: string): string[] {
+		const trimmed = vaultPath.replace(/^\/+/, "");
+		const candidates = [trimmed];
+		const root = this.getActiveRootFolder();
+		if (root && !trimmed.startsWith(`${root}/`)) {
+			candidates.push(`${root}/${trimmed}`);
+		}
+		return candidates;
+	}
+
 	private resolveCoverUrl(ref: string | null): string | null {
 		if (!ref || !ref.trim()) {
 			return null;
@@ -290,9 +312,11 @@ export class MPArticleHeader {
 		const trimmed = ref.trim();
 		if (trimmed.startsWith(this.coverVaultPrefix)) {
 			const vaultPath = trimmed.slice(this.coverVaultPrefix.length);
-			const file = this.plugin.app.vault.getAbstractFileByPath(vaultPath);
-			if (file instanceof TFile) {
-				return this.plugin.app.vault.getResourcePath(file);
+			for (const candidate of this.getVaultPathCandidates(vaultPath)) {
+				const file = this.plugin.app.vault.getAbstractFileByPath(candidate);
+				if (file instanceof TFile) {
+					return this.plugin.app.vault.getResourcePath(file);
+				}
 			}
 			return null;
 		}
@@ -320,8 +344,13 @@ export class MPArticleHeader {
 		const trimmed = ref.trim();
 		if (trimmed.startsWith(this.coverVaultPrefix)) {
 			const vaultPath = trimmed.slice(this.coverVaultPrefix.length);
-			const file = this.plugin.app.vault.getAbstractFileByPath(vaultPath);
-			return file instanceof TFile ? file : null;
+			for (const candidate of this.getVaultPathCandidates(vaultPath)) {
+				const file = this.plugin.app.vault.getAbstractFileByPath(candidate);
+				if (file instanceof TFile) {
+					return file;
+				}
+			}
+			return null;
 		}
 		if (trimmed.startsWith("obsidian://")) {
 			const urlParser = new UrlUtils(this.plugin.app);

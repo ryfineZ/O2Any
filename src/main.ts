@@ -8,8 +8,8 @@ import {
 	debounce,
 	Editor,
 	EventRef,
+	ItemView,
 	Notice,
-	Platform,
 	Plugin,
 	WorkspaceLeaf,
 } from "obsidian";
@@ -24,13 +24,12 @@ import {
 	One2MpSetting,
 	initOne2MpDB
 } from "./settings/one2mp-setting";
-import { initDraftDB, LocalDraftManager } from "./assets/draft-manager";
+import { initDraftDB } from "./assets/draft-manager";
 import { MessageService } from "./utils/message-service";
-import { PreviewPanel, VIEW_TYPE_ONE2MP_PREVIEW } from "./views/previewer";
+const VIEW_TYPE_ONE2MP_PREVIEW = "one2mp-article-preview";
 import { WechatClient } from "./wechat-api/wechat-client";
 import { Spinner } from "./views/spinner";
 import { MpcardInsertModal } from "./modals/mpcard-insert-modal";
-import { WechatRender } from "./render/wechat-render";
 
 // 插件默认配置，缺失字段时用于兜底
 const DEFAULT_SETTINGS: One2MpSetting = {
@@ -46,6 +45,7 @@ const DEFAULT_SETTINGS: One2MpSetting = {
 	defaultMpcardHeadimg: "",
 	defaultMpcardNickname: "",
 	defaultMpcardSignature: "",
+	themeDownloadOverwrite: false,
 };
 const ONE2MP_ICON_ID = "one2mp-logo";
 const ONE2MP_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
@@ -62,6 +62,10 @@ export default class One2MpPlugin extends Plugin {
 	resourceManager = ResourceManager.getInstance(this);
 	active: boolean = false;
 	spinner: Spinner;
+	private previewPanelCtor: (new (
+		leaf: WorkspaceLeaf,
+		plugin: One2MpPlugin
+	) => ItemView) | null = null;
 
 	async saveThemeFolder() {
 		this.trimSettings();
@@ -111,6 +115,31 @@ export default class One2MpPlugin extends Plugin {
 	}, 3000);
 
 	// proofService: ProofService;
+	// 启动日志写入，便于移动端定位加载失败原因
+	private async writeStartupLog(message: string, error?: unknown) {
+		const path = "o2any-startup.log";
+		const time = new Date().toISOString();
+		const detail = error ? ` ${this.formatStartupError(error)}` : "";
+		const line = `[${time}] ${message}${detail}\n`;
+		try {
+			const adapter = this.app.vault.adapter;
+			const exists = await adapter.exists(path);
+			if (exists) {
+				await adapter.append(path, line);
+			} else {
+				await adapter.write(path, line);
+			}
+		} catch (writeError) {
+			console.error("O2Any 启动日志写入失败", writeError);
+		}
+	}
+
+	private formatStartupError(error: unknown) {
+		if (error instanceof Error) {
+			return `${error.name}: ${error.message}${error.stack ? `\n${error.stack}` : ""}`;
+		}
+		return String(error);
+	}
 
 	createSpinner() {
 
@@ -155,7 +184,7 @@ export default class One2MpPlugin extends Plugin {
 
 		let leaf: WorkspaceLeaf | null | undefined = workspace
 			.getLeavesOfType(VIEW_TYPE_ONE2MP_PREVIEW)
-			.find((leaf) => leaf.view instanceof PreviewPanel);
+			.find((leaf) => leaf.view.getViewType() === VIEW_TYPE_ONE2MP_PREVIEW);
 
 		if (leaf === undefined || leaf === null) {
 			leaf = workspace.getRightLeaf(false);
@@ -291,71 +320,80 @@ export default class One2MpPlugin extends Plugin {
 	}
 	// 初始化本地数据库（设置与草稿）
 	initDB() {
-		initOne2MpDB();
-		initDraftDB();
+		void initOne2MpDB();
+		void initDraftDB();
 	}
 	async onload() {
 		// 插件入口：初始化 -> 读取配置 -> 注册视图与命令
-		this.initDB();
-		this.messageService = new MessageService();
-		await this.loadSettings();
-		this.wechatClient = WechatClient.getInstance(this);
-		addIcon(ONE2MP_ICON_ID, ONE2MP_ICON_SVG);
+		await this.writeStartupLog("onload:start");
+		try {
+			this.initDB();
+			this.messageService = new MessageService();
+			await this.loadSettings();
+			this.wechatClient = WechatClient.getInstance(this);
+			addIcon(ONE2MP_ICON_ID, ONE2MP_ICON_SVG);
 
-		this.registerViews();
+			const previewModule = await import("./views/previewer");
+			this.previewPanelCtor = previewModule.PreviewPanel;
+			this.registerViews();
 
-		this.addCommand({
-			id: "open-previewer",
-			name: $t("main.open-previewer"),
-			callback: () => {
+			this.addCommand({
+				id: "open-previewer",
+				name: $t("main.open-previewer"),
+				callback: () => {
+					void this.activateView();
+				},
+			});
+			this.addRibbonIcon(ONE2MP_ICON_ID, $t("main.open-previewer"), () => {
 				void this.activateView();
-			},
-		});
-		this.addRibbonIcon(ONE2MP_ICON_ID, $t("main.open-previewer"), () => {
-			void this.activateView();
-		});
+			});
 
-		this.addSettingTab(new One2MpSettingTab(this.app, this));
+			this.addSettingTab(new One2MpSettingTab(this.app, this));
 
-		this.createSpinner();
+			this.createSpinner();
 
-		// -- proofread
-		// this.registerEditorExtension([proofreadStateField, proofreadPlugin]);
+			// -- proofread
+			// this.registerEditorExtension([proofreadStateField, proofreadPlugin]);
 
-		// this.addCommand({
-		// 	id: "proofread-text",
-		// 	name: "校对文本",
-		// 	editorCallback: async (editor: Editor, view: MarkdownView) => {
-		// 		await proofreadText(editor, view);
-		// 	},
-		// });
-		this.messageService.registerListener('show-spinner', (msg: string) => {
-			this.showSpinner(msg);
-		})
-		this.messageService.registerListener('hide-spinner', () => {
-			this.hideSpinner();
-		})
-
-		this.registerEvent(
-			this.app.workspace.on("editor-menu", (menu, editor: Editor) => {
-				menu.addItem((item) => {
-					item.setTitle($t("main.insert-mpcard"));
-					item.onClick(() => {
-						const initial =
-							this.settings.defaultMpcard ||
-							this.buildDefaultMpcard();
-						const modal = new MpcardInsertModal(
-							this.app,
-							(content) => {
-								editor.replaceSelection(content);
-							},
-							initial
-						);
-						modal.open();
-					});
-				});
+			// this.addCommand({
+			// 	id: "proofread-text",
+			// 	name: "校对文本",
+			// 	editorCallback: async (editor: Editor, view: MarkdownView) => {
+			// 		await proofreadText(editor, view);
+			// 	},
+			// });
+			this.messageService.registerListener('show-spinner', (msg: string) => {
+				this.showSpinner(msg);
 			})
-		);
+			this.messageService.registerListener('hide-spinner', () => {
+				this.hideSpinner();
+			})
+
+			this.registerEvent(
+				this.app.workspace.on("editor-menu", (menu, editor: Editor) => {
+					menu.addItem((item) => {
+						item.setTitle($t("main.insert-mpcard"));
+						item.onClick(() => {
+							const initial =
+								this.settings.defaultMpcard ||
+								this.buildDefaultMpcard();
+							const modal = new MpcardInsertModal(
+								this.app,
+								(content) => {
+									editor.replaceSelection(content);
+								},
+								initial
+							);
+							modal.open();
+						});
+					});
+				})
+			);
+		} catch (error) {
+			await this.writeStartupLog("onload:error", error);
+			throw error;
+		}
+		await this.writeStartupLog("onload:ready");
 	}
 
 	private buildDefaultMpcard() {
@@ -376,8 +414,11 @@ export default class One2MpPlugin extends Plugin {
 	registerViewOnce(viewType: string) {
 		if (this.app.workspace.getLeavesOfType(viewType).length === 0) {
 			if (viewType === VIEW_TYPE_ONE2MP_PREVIEW) {
-				
-				this.registerView(viewType, (leaf) => new PreviewPanel(leaf, this))
+				if (!this.previewPanelCtor) {
+					new Notice("预览器未加载，无法注册视图");
+					return;
+				}
+				this.registerView(viewType, (leaf) => new this.previewPanelCtor!(leaf, this));
 			}
 		}
 	}
@@ -391,21 +432,18 @@ export default class One2MpPlugin extends Plugin {
 		}
 		// this.spinnerEl.remove();
 		this.spinner.unload();
-		this.app.workspace.iterateAllLeaves((leaf) => {
-			if (leaf.view instanceof PreviewPanel) {
-				leaf.detach();
-			}
-		});
 		this.app.workspace.getLeavesOfType(VIEW_TYPE_ONE2MP_PREVIEW).forEach((leaf) => leaf.detach());
 		WechatClient.resetInstance();
-		if (!Platform.isMobile) {
-			void (async () => {
-				const { ThemeManager } = await import("./theme/theme-manager");
-				ThemeManager.resetInstance();
-			})();
-		}
-		LocalDraftManager.resetInstance();
-		WechatRender.resetInstance();
+		void (async () => {
+			const { ThemeManager } = await import("./theme/theme-manager");
+			ThemeManager.resetInstance();
+		})();
+		void (async () => {
+			const { LocalDraftManager } = await import("./assets/draft-manager");
+			LocalDraftManager.resetInstance();
+			const { WechatRender } = await import("./render/wechat-render");
+			WechatRender.resetInstance();
+		})();
 	}
 
 

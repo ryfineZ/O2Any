@@ -363,18 +363,25 @@ export class One2MpSettingTab extends PluginSettingTab {
 						$t("views.theme-manager.download-predefined-custom-themes")
 					)
 					.onClick(() => {
-						if (Platform.isMobile) {
-							new Notice(
-								$t("views.theme-manager.download-themes-mobile-not-supported")
-							);
-							return;
-						}
 						void (async () => {
 							const { ThemeManager } = await import(
 								"src/theme/theme-manager"
 							);
+							new Notice($t("views.theme-manager.download-started"));
 							void ThemeManager.getInstance(this.plugin).downloadThemes();
 						})();
+					});
+			});
+
+		new Setting(container)
+			.setName($t("settings.theme-download-overwrite"))
+			.setDesc($t("settings.theme-download-overwrite-desc"))
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.themeDownloadOverwrite)
+					.onChange((value) => {
+						this.plugin.settings.themeDownloadOverwrite = value;
+						this.plugin.saveSettings();
 					});
 			});
 	}

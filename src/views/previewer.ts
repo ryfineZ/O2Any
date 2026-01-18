@@ -11,7 +11,6 @@ import {
 	ItemView,
 	MarkdownView,
 	Notice,
-	Platform,
 	sanitizeHTMLToDom,
 	Setting,
 	setIcon,
@@ -161,7 +160,7 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 	}
 
 	private async ensureThemeSelector() {
-		if (Platform.isMobile || this.themeSelector) {
+		if (this.themeSelector) {
 			return;
 		}
 		const { ThemeSelector } = await import("../theme/theme-selector");
@@ -169,9 +168,6 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 	}
 
 	private async getThemeManager() {
-		if (Platform.isMobile) {
-			return null;
-		}
 		if (!this.themeManagerModule) {
 			this.themeManagerModule = await import("../theme/theme-manager");
 		}

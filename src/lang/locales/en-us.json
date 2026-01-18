@@ -163,6 +163,8 @@
     "default-mpcard-sync-success": "Default official account card synced.",
     "default-mpcard-sync-failed": "Failed to sync official account card.",
     "default-mpcard-sync-partial": "Only nickname was synced. Please fill avatar/signature manually.",
+    "theme-download-overwrite": "Overwrite themes on download",
+    "theme-download-overwrite-desc": "When enabled, download will overwrite existing themes with the same name.",
     "test-connection": "Test connection",
     "choose-the-account-to-modify": "Choose the account to modify",
     "the-folder-where-your-custom-themes": "Folder where your custom themes are stored.",
@@ -232,7 +234,9 @@
     "theme-manager": {
       "default-theme": "Default theme",
       "download-predefined-custom-themes": "Download predefined custom themes",
+      "download-started": "Theme download started. Please wait…",
       "download-themes-mobile-not-supported": "Theme download is not supported on mobile.",
+      "download-summary": "Theme download finished: {0} success, {1} failed, {2} skipped",
       "error-downloading-theme": "Error downloading theme",
       "error-downloading-themes": "Error downloading themes.",
       "failed-to-fetch-themes-json-themesrespon": "Failed to fetch themes.json: {0}",

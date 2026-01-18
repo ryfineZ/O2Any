@@ -1,10 +1,16 @@
 /** process custom theme content */
-import matter from "gray-matter";
-import { CachedMetadata, Notice, TFile, TFolder, requestUrl } from "obsidian";
-import postcss from "postcss";
+import {
+	CachedMetadata,
+	Notice,
+	TFile,
+	TFolder,
+	requestUrl,
+	normalizePath,
+} from "obsidian";
 // import { combinedCss } from "src/assets/css/template-css";
 import { $t } from "src/lang/i18n";
 import One2MpPlugin from "src/main";
+import { parseFrontmatter } from "src/utils/frontmatter";
 import { CSSMerger } from "./CssMerger";
 
 export type WeChatTheme = {
@@ -20,10 +26,19 @@ export class ThemeManager {
 
 	async downloadThemes() {
 		// 主题下载：拉取 themes.json，然后逐个保存到自定义主题目录
-		const baseUrl = "https://raw.githubusercontent.com/ryfineZ/O2Any-Obsdian/master/themes/";
-		const baseUrlAlter =
-			"https://gitee.com/ryfineZ/O2Any-Obsdian/raw/master/themes/";
-		const saveDir = this.plugin.settings.css_styles_folder || "/one2mp-custom-css";
+		const baseUrls = [
+			"https://raw.githubusercontent.com/ryfineZ/O2Any/main/themes/",
+			"https://fastly.jsdelivr.net/gh/ryfineZ/O2Any@main/themes/",
+			"https://ghproxy.com/https://raw.githubusercontent.com/ryfineZ/O2Any/main/themes/",
+			"https://gitee.com/ryfineZ/O2Any/raw/main/themes/",
+			"https://raw.githubusercontent.com/ryfineZ/O2Any/master/themes/",
+			"https://fastly.jsdelivr.net/gh/ryfineZ/O2Any@master/themes/",
+			"https://ghproxy.com/https://raw.githubusercontent.com/ryfineZ/O2Any/master/themes/",
+			"https://gitee.com/ryfineZ/O2Any/raw/master/themes/",
+		];
+		const saveDir = this.normalizeThemeFolder(
+			this.plugin.settings.css_styles_folder
+		);
 
 		// Create save directory if it doesn't exist
 		if (!this.plugin.app.vault.getAbstractFileByPath(saveDir)) {
@@ -31,34 +46,36 @@ export class ThemeManager {
 		}
 
 		try {
-			// Download themes.json，优先 GitHub，不可用时回退 Gitee
-			let url = baseUrl;
+			let url = "";
 			let themesResponse;
-			try {
-				themesResponse = await requestUrl(`${baseUrl}themes.json`);
-				if (themesResponse.status !== 200) {
-					throw new Error(
-						$t("views.theme-manager.failed-to-fetch-themes-json-themesrespon", [
-							themesResponse.text,
-						])
-					);
+			let lastError: Error | null = null;
+			for (const candidate of baseUrls) {
+				try {
+					themesResponse = await requestUrl(`${candidate}themes.json`);
+					if (themesResponse.status === 200) {
+						url = candidate;
+						break;
+					}
+					lastError = new Error(themesResponse.text);
+				} catch (error) {
+					lastError =
+						error instanceof Error ? error : new Error(String(error));
 				}
-			} catch (error) {
-				console.debug(`exception, Using Gitee URL: ${baseUrlAlter}`);
-				url = baseUrlAlter;
-				themesResponse = await requestUrl(`${url}themes.json`);
 			}
-
-			if (themesResponse.status !== 200) {
+			if (!themesResponse || themesResponse.status !== 200 || !url) {
 				throw new Error(
 					$t("views.theme-manager.failed-to-fetch-themes-json-themesrespon", [
-						themesResponse.text,
+						lastError?.message ?? "unknown",
 					])
 				);
 			}
 
 			const themesData = themesResponse.json;
 			const themes = themesData.themes;
+			let successCount = 0;
+			let failedCount = 0;
+			let skippedCount = 0;
+			const overwrite = this.plugin.settings.themeDownloadOverwrite;
 
 			// Download each theme file
 			for (const theme of themes) {
@@ -69,37 +86,50 @@ export class ThemeManager {
 					const fileResponse = await requestUrl(`${url}${encodedFile}`);
 					if (fileResponse.status !== 200) {
 						console.warn(`Failed to download ${theme.file}: ${fileResponse.text}`);
+						failedCount += 1;
 						continue;
 					}
 
 					const fileContent = fileResponse.text;
-					// Generate unique file name
-					let filePath = `${saveDir}/${theme.file}`;
-					let counter = 1;
-
-					while (this.plugin.app.vault.getAbstractFileByPath(filePath)) {
-						const extIndex = theme.file.lastIndexOf('.');
-						const baseName = extIndex > 0 ? theme.file.slice(0, extIndex) : theme.file;
-						const ext = extIndex > 0 ? theme.file.slice(extIndex) : '';
-						filePath = `${saveDir}/${baseName}(${counter})${ext}`;
-						counter++;
+					const filePath = `${saveDir}/${theme.file}`;
+					const existing =
+						this.plugin.app.vault.getAbstractFileByPath(filePath);
+					if (existing) {
+						if (!overwrite) {
+							skippedCount += 1;
+							continue;
+						}
+						if (existing instanceof TFile) {
+							await this.plugin.app.vault.modify(existing, fileContent);
+							successCount += 1;
+							continue;
+						}
+						failedCount += 1;
+						continue;
 					}
-
 					await this.plugin.app.vault.create(filePath, fileContent);
+					successCount += 1;
 				} catch (error) {
 					console.error(error);
+					failedCount += 1;
 					new Notice($t('views.theme-manager.error-downloading-theme') + error.message);
 					continue;
 				}
 			}
-			new Notice($t('views.theme-manager.total-themes-length-themes-downloaded', [themes.length]))
+			new Notice(
+				$t("views.theme-manager.download-summary", [
+					String(successCount),
+					String(failedCount),
+					String(skippedCount),
+				])
+			);
 		} catch (error) {
 			console.error("Error downloading themes:", error);
 			new Notice($t('views.theme-manager.error-downloading-themes'));
 		}
 	}
 	private plugin: One2MpPlugin;
-	defaultCssRoot: postcss.Root;
+	defaultCssRoot: string | undefined;
 	themes: WeChatTheme[] = [];
 	// static template_css: string = combinedCss;
 
@@ -120,12 +150,25 @@ export class ThemeManager {
 
 	async loadThemes() {
 		this.themes = [];
-		const folder_path = this.plugin.settings.css_styles_folder;
+		const folder_path = this.normalizeThemeFolder(
+			this.plugin.settings.css_styles_folder
+		);
 		const folder = this.plugin.app.vault.getAbstractFileByPath(folder_path);
 		if (folder instanceof TFolder) {
 			this.themes = await this.getAllThemesInFolder(folder);
 		}
 		return this.themes;
+	}
+	private normalizeThemeFolder(raw?: string) {
+		let folder = (raw ?? "").trim();
+		if (!folder) {
+			folder = "one2mp-css-styles";
+		}
+		folder = normalizePath(folder);
+		if (folder.startsWith("/")) {
+			folder = folder.slice(1);
+		}
+		return folder;
 	}
 	public cleanCSS(css: string): string {
 
@@ -283,14 +326,15 @@ export class ThemeManager {
 
 	private async getThemeProperties(file: TFile): Promise<WeChatTheme | undefined> {
 		const fileContent = await this.plugin.app.vault.cachedRead(file);
-		const { data } = matter(fileContent); // 解析前置元数据
-		if (data.theme_name === undefined || !data.theme_name.trim()) {
+		const { data } = parseFrontmatter(fileContent); // 解析前置元数据
+		const themeName = (data.theme_name || "").trim();
+		if (!themeName) {
 			// it is not a valid theme.
 			return;
 		}
 
 		return {
-			name: data.theme_name,
+			name: themeName,
 			path: file.path,
 		};
 	}

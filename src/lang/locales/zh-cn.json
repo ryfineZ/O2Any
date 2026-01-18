@@ -93,7 +93,7 @@
     "rendering": "渲染中...",
     "failed-to-parse-custom-css": "定制风格存在CSS语法错误：{0}"
   },
-  "settings": {
+    "settings": {
     "account-info": "账号信息",
     "account-name": "公众号名称",
     "account-name-for-your-wechat-official": "微信公众号名称",
@@ -114,6 +114,8 @@
     "create-new-account": "创建新账号",
     "custom-themes": "自定义主题",
     "custom-themes-folder": "自定义主题文件夹",
+    "theme-download-overwrite": "下载主题时覆盖同名文件",
+    "theme-download-overwrite-desc": "开启则覆盖已有同名主题，关闭则跳过。",
     "general-settings": "通用设置",
     "default-mpcard-biz-id": "Biz ID（data-id）",
     "default-mpcard-biz-id-desc": "HTML 中的 base64 ID。",
@@ -180,7 +182,7 @@
     "you-should-add-this-ip-to-ip-whitelist-o": "请将此IP添加到IP白名单中。点击下方账号信息中的图片访问“微信公众号平台”进行设置。",
     "your-wechat-official-account": "您的微信公众号"
   },
-  "views": {
+    "views": {
     "article-header": {
       "article-title": "文章标题",
       "article-title-placeholder": "输入文章标题",
@@ -244,7 +246,9 @@
       "error-downloading-theme": "下载主题出错",
       "error-downloading-themes": "下载主题出错。",
       "failed-to-fetch-themes-json-themesrespon": "获取themes.json失败：{0}",
-      "total-themes-length-themes-downloaded": "共下载{0}个主题。"
+      "total-themes-length-themes-downloaded": "共下载{0}个主题。",
+      "download-started": "开始下载主题，请稍候…",
+      "download-summary": "主题下载完成：成功 {0} 个，失败 {1} 个，跳过 {2} 个"
     }
   },
   "wechat-api": {

@@ -3,7 +3,6 @@ manage the wechat account settings
 
 */
 import { Plugin } from "obsidian";
-import PouchDB from "pouchdb";
 import { areObjectsEqual } from "src/utils/utils";
 
 export type WeChatAccountInfo = {
@@ -37,6 +36,7 @@ export type One2MpSetting = {
     defaultMpcardHeadimg?: string;
     defaultMpcardNickname?: string;
     defaultMpcardSignature?: string;
+	themeDownloadOverwrite: boolean;
 };
 
 type One2MpDataFile = {
@@ -45,18 +45,40 @@ type One2MpDataFile = {
 	settings_version?: number;
 };
 
-// 使用 PouchDB 作为旧配置存储（迁移后保留数据，不做删除）
-export const initOne2MpDB = (): PouchDB.Database<One2MpSetting> => {
-	return new PouchDB<One2MpSetting>("one2mp-settings");
+type One2MpDb = {
+	get: (id: string) => Promise<One2MpSetting>;
 };
-// Create a new database
-const db = initOne2MpDB();
+
+let legacyDb: One2MpDb | null = null;
+
+// 使用 PouchDB 作为旧配置存储（移动端可能不可用）
+const loadLegacyDb = async (): Promise<One2MpDb | null> => {
+	if (legacyDb) {
+		return legacyDb;
+	}
+	try {
+		const { default: PouchDB } = await import("pouchdb");
+		legacyDb = new PouchDB<One2MpSetting>("one2mp-settings");
+		return legacyDb;
+	} catch (error) {
+		console.warn("PouchDB 初始化失败，跳过旧配置迁移", error);
+		return null;
+	}
+};
+
+export const initOne2MpDB = async (): Promise<void> => {
+	await loadLegacyDb();
+};
 
 
 const SETTINGS_VERSION = 1;
 
 // 读取旧配置文档（不存在则返回 undefined）
 const getLegacySetting = async (): Promise<One2MpSetting | undefined> => {
+	const db = await loadLegacyDb();
+	if (!db) {
+		return undefined;
+	}
 	return new Promise((resolve) => {
 		db.get("one2mp-settings")
 			.then((doc: One2MpSetting) => {

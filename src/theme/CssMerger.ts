@@ -4,8 +4,6 @@
  * date: 2025-05-10
  */
 
-import postcss from 'postcss';
-
 import $00 from '../assets/default-styles/00_one2mp.css';
 import $01 from '../assets/default-styles/01_layout.css';
 import $02 from '../assets/default-styles/02_icons.css';
@@ -91,14 +89,16 @@ const RESERVED_CLASS_PREFIX = [
 
 const isClassReserved = (className: string) => {
 	return RESERVED_CLASS_PREFIX.some(prefix => className.startsWith(prefix));
-}	
+}
 
-type Rule = Map<string, postcss.Declaration>;
+type RuleDecl = {
+	value: string;
+	important: boolean;
+};
+type Rule = Map<string, RuleDecl>;
 type Rules = Map<string, Rule>;
 
 export class CSSMerger {
-	baseAST: postcss.Root | undefined;
-	overrideAST: postcss.Root | undefined;
 	vars: Map<string, string> = new Map()
 	rules: Rules = new Map()
 
@@ -107,9 +107,7 @@ export class CSSMerger {
 		// 先构建基础样式，再合并用户自定义规则/变量
 		await this.buildBaseCSS();
 		try {
-			const ast = (await postcss().process(customCSS, { from: undefined })).root;
-			this.pickVariables(ast, this.vars);
-			this.pickRules(ast, this.rules);
+			this.mergeCssText(customCSS);
 		}catch(e) {
 			new Notice($t('render.failed-to-parse-custom-css', [e]));
 			console.error(e);
@@ -121,9 +119,7 @@ export class CSSMerger {
 		this.vars.clear();
 		this.rules.clear();
 		for (const css of baseCSS) {
-			const ast = (await postcss().process(css, { from: undefined })).root;
-			this.pickVariables(ast, this.vars);
-			this.pickRules(ast, this.rules);
+			this.mergeCssText(css);
 		}
 	}
 	private resolveCssVars(value: string, vars: Map<string, string>, depth = 0): string {
@@ -158,35 +154,194 @@ export class CSSMerger {
 		return result;
 	}
 
-	private pickRules(root: postcss.Root, rules: Rules): void {
-		// 将规则按 selector + prop 合并，后者优先（或 !important）
-		root.walkRules(rule => {
-			if (rule.selector !== ':root') {
-				let selectedRule = rules.get(rule.selector);
-				if (!selectedRule) {
-					selectedRule = new Map();
-					rules.set(rule.selector, selectedRule);
-				}
-				rule.walkDecls(decl => {
-					const baseDecl = selectedRule.get(decl.prop);
-
-					if (baseDecl === undefined || !baseDecl.important || decl.important) {
-						selectedRule.set(decl.prop, decl);
-					}
-				})
-			}
-		})
+	private mergeCssText(cssText: string) {
+		if (!cssText || !cssText.trim()) {
+			return;
+		}
+		const parsed = this.parseCssText(cssText);
+		this.mergeVars(parsed.vars);
+		this.mergeRules(parsed.rules);
 	}
-	private pickVariables(root: postcss.Root, vars: Map<string, string>): void {
-		root.walkRules(rule => {
-			if (rule.selector === ':root') {
-				rule.walkDecls(decl => {
-					if (decl.prop.startsWith('--')) {
-						vars.set(decl.prop, decl.value);
-					}
-				});
+
+	private mergeVars(vars: Map<string, string>) {
+		for (const [key, value] of vars.entries()) {
+			this.vars.set(key, value);
+		}
+	}
+
+	private mergeRules(rules: Rules) {
+		for (const [selector, ruleMap] of rules.entries()) {
+			let selectedRule = this.rules.get(selector);
+			if (!selectedRule) {
+				selectedRule = new Map();
+				this.rules.set(selector, selectedRule);
 			}
-		})
+			for (const [prop, decl] of ruleMap.entries()) {
+				const baseDecl = selectedRule.get(prop);
+				if (baseDecl === undefined || !baseDecl.important || decl.important) {
+					selectedRule.set(prop, decl);
+				}
+			}
+		}
+	}
+
+	private parseCssText(cssText: string): { vars: Map<string, string>; rules: Rules } {
+		const vars = new Map<string, string>();
+		const rules: Rules = new Map();
+		const sheet = this.parseWithCssSheet(cssText);
+		if (sheet) {
+			this.collectRulesFromList(sheet.cssRules, vars, rules);
+			return { vars, rules };
+		}
+		this.parseWithFallback(cssText, vars, rules);
+		return { vars, rules };
+	}
+
+	private parseWithCssSheet(cssText: string): CSSStyleSheet | null {
+		if (typeof CSSStyleSheet === "undefined") {
+			return null;
+		}
+		const sheet = new CSSStyleSheet();
+		try {
+			sheet.replaceSync(cssText);
+			return sheet;
+		} catch (error) {
+			console.debug("CSSStyleSheet 解析失败", error);
+			return null;
+		}
+	}
+
+	private collectRulesFromList(ruleList: CSSRuleList, vars: Map<string, string>, rules: Rules) {
+		for (const rule of Array.from(ruleList)) {
+			if (rule.type === CSSRule.STYLE_RULE) {
+				this.collectStyleRule(rule as CSSStyleRule, vars, rules);
+			} else if ("cssRules" in rule) {
+				this.collectRulesFromList((rule as CSSMediaRule).cssRules, vars, rules);
+			}
+		}
+	}
+
+	private collectStyleRule(styleRule: CSSStyleRule, vars: Map<string, string>, rules: Rules) {
+		if (!styleRule.selectorText) {
+			return;
+		}
+		const selectors = styleRule.selectorText
+			.split(",")
+			.map((selector) => selector.trim())
+			.filter(Boolean);
+		if (selectors.length === 0) {
+			return;
+		}
+		for (const selector of selectors) {
+			if (selector === ":root") {
+				this.collectVariables(styleRule.style, vars);
+				continue;
+			}
+			this.collectDeclarations(selector, styleRule.style, rules);
+		}
+	}
+
+	private collectVariables(style: CSSStyleDeclaration, vars: Map<string, string>) {
+		for (let i = 0; i < style.length; i++) {
+			const prop = style.item(i);
+			if (!prop || !prop.startsWith("--")) {
+				continue;
+			}
+			const value = style.getPropertyValue(prop).trim();
+			if (value) {
+				vars.set(prop, value);
+			}
+		}
+	}
+
+	private collectDeclarations(selector: string, style: CSSStyleDeclaration, rules: Rules) {
+		let ruleMap = rules.get(selector);
+		if (!ruleMap) {
+			ruleMap = new Map();
+			rules.set(selector, ruleMap);
+		}
+		for (let i = 0; i < style.length; i++) {
+			const prop = style.item(i);
+			if (!prop || prop.startsWith("--")) {
+				continue;
+			}
+			const value = style.getPropertyValue(prop).trim();
+			if (!value) {
+				continue;
+			}
+			ruleMap.set(prop, {
+				value,
+				important: style.getPropertyPriority(prop) === "important",
+			});
+		}
+	}
+
+	private parseWithFallback(cssText: string, vars: Map<string, string>, rules: Rules) {
+		const cleaned = cssText.replace(/\/\*[\s\S]*?\*\//g, "");
+		const ruleRegex = /([^{@}]+)\{([^}]*)\}/g;
+		let match: RegExpExecArray | null;
+		while ((match = ruleRegex.exec(cleaned)) !== null) {
+			const selectorText = match[1].trim();
+			if (!selectorText || selectorText.startsWith("@")) {
+				continue;
+			}
+			const body = match[2];
+			const declarations = this.parseDeclarations(body);
+			const selectors = selectorText
+				.split(",")
+				.map((selector) => selector.trim())
+				.filter(Boolean);
+			for (const selector of selectors) {
+				if (selector === ":root") {
+					for (const [key, value] of declarations.entries()) {
+						if (key.startsWith("--")) {
+							vars.set(key, value.value);
+						}
+					}
+					continue;
+				}
+				let ruleMap = rules.get(selector);
+				if (!ruleMap) {
+					ruleMap = new Map();
+					rules.set(selector, ruleMap);
+				}
+				for (const [key, decl] of declarations.entries()) {
+					if (key.startsWith("--")) {
+						continue;
+					}
+					ruleMap.set(key, decl);
+				}
+			}
+		}
+	}
+
+	private parseDeclarations(body: string): Map<string, RuleDecl> {
+		const result = new Map<string, RuleDecl>();
+		const parts = body.split(";");
+		for (const part of parts) {
+			const cleaned = part.trim();
+			if (!cleaned) {
+				continue;
+			}
+			const colonIndex = cleaned.indexOf(":");
+			if (colonIndex === -1) {
+				continue;
+			}
+			const prop = cleaned.slice(0, colonIndex).trim();
+			if (!prop) {
+				continue;
+			}
+			let value = cleaned.slice(colonIndex + 1).trim();
+			let important = false;
+			if (value.endsWith("!important")) {
+				important = true;
+				value = value.replace(/!important$/i, "").trim();
+			}
+			if (value) {
+				result.set(prop, { value, important });
+			}
+		}
+		return result;
 	}
 
 	private normalizeSelector(selector: string) {

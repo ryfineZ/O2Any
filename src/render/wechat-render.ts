@@ -9,7 +9,6 @@
  *
  */
 
-import matter from "gray-matter";
 import { Marked, Tokens, Renderer } from "marked";
 import { sanitizeHTMLToDom } from "obsidian";
 import One2MpPlugin from "src/main";
@@ -31,11 +30,38 @@ import { Links } from "./marked-extensions/links";
 import { Summary } from "./marked-extensions/summary";
 import { Image } from "./marked-extensions/image";
 import { stripTemplateMarkerLines } from "src/utils/template-markers";
+import { parseFrontmatter } from "src/utils/frontmatter";
 // import { ListItem } from './marked-extensions/list-item'
 
 const markedOptiones = {
 	gfm: true,
 	breaks: true,
+};
+
+const normalizeHrAfterImage = (content: string) => {
+	const lines = content.split(/\r?\n/);
+	const isHrLine = (line: string) => /^[\t ]*([-*_])\1\1+[\t ]*$/.test(line);
+	const isImageLine = (line: string) => {
+		const trimmed = line.trim();
+		if (!trimmed) {
+			return false;
+		}
+		if (/^!\[\[.+\]\]$/.test(trimmed)) {
+			return true;
+		}
+		return /^!\[[^\]]*]\([^)]+\)$/.test(trimmed);
+	};
+	const result: string[] = [];
+	for (let i = 0; i < lines.length; i += 1) {
+		const line = lines[i];
+		if (isHrLine(line) && i > 0 && isImageLine(lines[i - 1])) {
+			if (result.length && result[result.length - 1].trim() !== "") {
+				result.push("");
+			}
+		}
+		result.push(line);
+	}
+	return result.join("\n");
 };
 
 export class WechatRender {
@@ -156,13 +182,14 @@ export class WechatRender {
 		// this.addExtension(new ListItem(this.plugin, this.previewRender, this.marked))
 	}
 	async parse(md: string) {
-		const { content } = matter(md);
+		const { content } = parseFrontmatter(md);
 		const cleaned = stripTemplateMarkerLines(content);
+		const normalized = normalizeHrAfterImage(cleaned);
 		// 先让扩展完成预处理（如缓存、索引）
 		for (const extension of this.extensions) {
 			await extension.prepare();
 		}
-		return await this.marked.parse(cleaned);
+		return await this.marked.parse(normalized);
 	}
 	async postprocess(html: string) {
 		let result = html;

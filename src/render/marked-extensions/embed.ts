@@ -14,7 +14,7 @@ import { TAbstractFile, TFile } from "obsidian";
 import { ObsidianMarkdownRenderer } from "../markdown-render";
 import { One2MpMarkedExtension } from "./extension";
 import { $t } from "src/lang/i18n";
-import matter from "gray-matter";
+import { parseFrontmatter } from "src/utils/frontmatter";
 
 declare module "obsidian" {
 	interface Vault {
@@ -325,7 +325,7 @@ export class Embed extends One2MpMarkedExtension {
 		}
 
 			const md = await this.getFileContent(file, header, block);
-			const { content } = matter(md);
+			const { content } = parseFrontmatter(md);
 			const body = await this.marked.parse(content);
 			return body;
 		}

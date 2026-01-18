@@ -7,11 +7,14 @@
  */
 
 import One2MpPlugin from "src/main";
-import PouchDB from 'pouchdb';
-import PouchDBFind from 'pouchdb-find';
+import { Platform } from "obsidian";
 import { areObjectsEqual } from "src/utils/utils";
 import { $t } from "src/lang/i18n";
-PouchDB.plugin(PouchDBFind);
+ 
+type DraftDb = {
+	get: (id: string) => Promise<LocalDraftItem & { _rev?: string }>;
+	put: (doc: LocalDraftItem & { _id: string }) => Promise<unknown>;
+};
 
 
 
@@ -43,17 +46,35 @@ export type LocalDraftItem = {
 }
 
 // 草稿本地数据库：按账号 + 笔记路径存储发布元信息
-export const initDraftDB = () => {
-	const db = new PouchDB('one2mp-local-drafts');
-	return  db;
-}
+let draftDb: DraftDb | null = null;
+
+const loadDraftDb = async (): Promise<DraftDb | null> => {
+	if (draftDb) {
+		return draftDb;
+	}
+	try {
+		const { default: PouchDB } = await import("pouchdb");
+		const { default: PouchDBFind } = await import("pouchdb-find");
+		PouchDB.plugin(PouchDBFind);
+		draftDb = new PouchDB("one2mp-local-drafts");
+		return draftDb;
+	} catch (error) {
+		console.warn("PouchDB 初始化失败，改用内存草稿存储", error);
+		return null;
+	}
+};
+
+export const initDraftDB = async (): Promise<void> => {
+	await loadDraftDb();
+};
 export class LocalDraftManager {
     private plugin: One2MpPlugin;
-    private db: PouchDB.Database;
+    private db: DraftDb | null = null;
+	private fallbackDrafts: Record<string, LocalDraftItem> = {};
+	private fallbackLoaded = false;
     private static instance: LocalDraftManager | null = null;
     private constructor(plugin: One2MpPlugin) {
         this.plugin = plugin;
-        this.db = initDraftDB();
     }
     public static getInstance(plugin: One2MpPlugin): LocalDraftManager {
         if (!LocalDraftManager.instance) {
@@ -63,6 +84,45 @@ export class LocalDraftManager {
     }
 	public static resetInstance() {
 		LocalDraftManager.instance = null;
+	}
+	private async ensureFallbackLoaded() {
+		if (this.fallbackLoaded) {
+			return;
+		}
+		try {
+			const data = (await this.plugin.loadData()) as Record<string, unknown> | null;
+			const drafts = data?.local_drafts;
+			if (drafts && typeof drafts === "object") {
+				this.fallbackDrafts = drafts as Record<string, LocalDraftItem>;
+			}
+		} catch (error) {
+			console.warn("加载本地草稿缓存失败", error);
+		} finally {
+			this.fallbackLoaded = true;
+		}
+	}
+
+	private async saveFallbackDrafts() {
+		try {
+			const data = (await this.plugin.loadData()) as Record<string, unknown> | null;
+			await this.plugin.saveData({
+				...(data ?? {}),
+				local_drafts: this.fallbackDrafts,
+			});
+		} catch (error) {
+			console.warn("保存本地草稿缓存失败", error);
+		}
+	}
+
+	private async getDb(): Promise<DraftDb | null> {
+		if (this.db !== null) {
+			return this.db;
+		}
+		if (Platform.isMobile) {
+			return null;
+		}
+		this.db = await loadDraftDb();
+		return this.db;
 	}
     public async getDrafOfActiveNote() {
         let draft: LocalDraftItem | undefined
@@ -103,21 +163,44 @@ export class LocalDraftManager {
         return false
     }
     public async getDraft(accountName: string, notePath: string): Promise<LocalDraftItem | undefined> {
-        return new Promise((resolve) => {
-            this.db.get(accountName + notePath)
-                .then((doc) => {
-                    resolve(doc as LocalDraftItem)
-                })
-                .catch(() => {
-                    resolve(undefined)
-                })
+		const db = await this.getDb();
+		if (!db) {
+			await this.ensureFallbackLoaded();
+			return this.fallbackDrafts[accountName + notePath];
+		}
+		return new Promise((resolve) => {
+			db.get(accountName + notePath)
+				.then((doc) => {
+					resolve(doc as LocalDraftItem)
+				})
+				.catch(() => {
+					resolve(undefined)
+				})
 
-        })
+		})
     }
 
     public async setDraft(doc: LocalDraftItem): Promise<boolean> {
         const toError = (err: unknown): Error =>
             err instanceof Error ? err : new Error(String(err));
+		const db = await this.getDb();
+		if (!db) {
+			await this.ensureFallbackLoaded();
+			if (!doc.accountName || !doc.notePath) {
+				throw new Error($t('assets.invalid-draft'));
+			}
+			if (!doc._id) {
+				doc._id = doc.accountName + doc.notePath;
+			}
+			const existing = this.fallbackDrafts[doc._id];
+			if (existing && areObjectsEqual(doc, existing)) {
+				return true;
+			}
+			this.fallbackDrafts[doc._id] = { ...doc };
+			await this.saveFallbackDrafts();
+			return true;
+		}
+
         return new Promise((resolve, reject) => {
             if (!doc.accountName || !doc.notePath) {
                 return reject(new Error($t('assets.invalid-draft')));
@@ -127,7 +210,7 @@ export class LocalDraftManager {
                 doc._id = doc.accountName + doc.notePath;
             }
 
-            this.db.get(doc._id)
+            db.get(doc._id)
                 .then(existedDoc => {
                     const existingDraft = existedDoc as LocalDraftItem;
                     if (areObjectsEqual(doc, existingDraft)) {
@@ -137,7 +220,7 @@ export class LocalDraftManager {
                     }
                     else {
                         doc._rev = existedDoc._rev;
-                        return this.db.put(doc)
+                        return db.put(doc as LocalDraftItem & { _id: string })
                             .then(() => resolve(true))
                             .catch(() => {
                                 resolve(false);
@@ -149,7 +232,7 @@ export class LocalDraftManager {
                 .catch(error => {
                     if (error.status === 404) {
                         // New document
-                        return this.db.put(doc)
+                        return db.put(doc as LocalDraftItem & { _id: string })
                             .then(() => resolve(true))
                             .catch(err => {
                                 console.error('Error creating new draft:', err);

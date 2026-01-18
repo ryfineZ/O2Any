@@ -325,6 +325,42 @@ CSS for one2mp plugin.
     margin-right: 4px;
 }
 
+@media (max-width: 600px) {
+	.one2mp-preview-toolbar {
+		gap: 6px;
+	}
+
+	.toolbar-group-left,
+	.toolbar-group-right {
+		width: 100%;
+		justify-content: flex-start;
+	}
+
+	.toolbar-group-left select {
+		max-width: 100%;
+		width: 100%;
+	}
+
+	.one2mp-toolbar-actions-group {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+
+	.one2mp-toolbar-actions-group select {
+		max-width: 120px;
+	}
+
+	.one2mp-toolbar-btn.clickable-icon {
+		height: 22px;
+		width: 22px;
+		padding: 3px;
+	}
+
+	.one2mp-toolbar-ip {
+		display: none;
+	}
+}
+
 .one2mp-settings .setting-item-control input[type="text"],
 .one2mp-settings .setting-item-control input[type="password"],
 .one2mp-settings .setting-item-control textarea,
