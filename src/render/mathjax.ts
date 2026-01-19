@@ -1,58 +1,55 @@
 /**
- * new version os mathjax wrapper for render math LaTeX to svg
+ * MathJax 包装：使用 Obsidian 内置 MathJax 输出 SVG
  */
 
-import { LiteAdaptor } from 'mathjax-full/js/adaptors/liteAdaptor'
-import { RegisterHTMLHandler } from 'mathjax-full/js/handlers/html'
-import { TeX } from 'mathjax-full/js/input/tex'
-import { AllPackages } from 'mathjax-full/js/input/tex/AllPackages'
-import { mathjax } from 'mathjax-full/js/mathjax'
-import { SVG } from 'mathjax-full/js/output/svg'
+type MathJaxGlobal = {
+  tex2svg?: (math: string, options?: { display?: boolean }) => Element;
+  tex2svgPromise?: (math: string, options?: { display?: boolean }) => Promise<Element>;
+};
 
-const adaptor = new LiteAdaptor()
-RegisterHTMLHandler(adaptor)
+const escapeHtml = (text: string) =>
+  text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
-const mathjax_document = mathjax.document('', {
-  InputJax: new TeX({ packages: AllPackages }),
-  OutputJax: new SVG({ fontCache: 'none' })
-})
-
-const mathjax_options = {
-  em: 16,
-  ex: 8,
-  containerWidth: 1280,
-//   display: true
+function getMathJax(): MathJaxGlobal | null {
+  const mj = (globalThis as unknown as { MathJax?: MathJaxGlobal }).MathJax;
+  return mj ?? null;
 }
 
-export function parseMath(math: string): string {
-    
-  const node = mathjax_document.convert(math, mathjax_options)
-  
-  return adaptor.innerHTML(node)
+export function parseMath(math: string, display = false): string {
+  const mj = getMathJax();
+  if (mj?.tex2svg) {
+    const node = mj.tex2svg(math, { display });
+    const svg = (node as Element).querySelector("svg") ?? node;
+    return new XMLSerializer().serializeToString(svg);
+  }
+  return escapeHtml(math);
 }
 
-const inlineRule = /\$(.*)\$/g // /^(\${1,2})(?!\$)((?:\\.|[^\\\n])*?(?:\\.|[^\\\n\$]))\1/;
-const blockRule = /\$\$(?!<\$\$)([\s\S]*?)\$\$/g;  // /^(\${1,2})\n((?:\\[^]|[^\\])+?)\n\1(?:\n|$)/;
+const inlineRule = /\$(.*)\$/g;
+const blockRule = /\$\$(?!<\$\$)([\s\S]*?)\$\$/g;
 
 export function parseHTML(html: string): string {
-    let matches = html.match(blockRule)
-    if (matches) {
-        matches.forEach(match => {
-            const math = match.replace(/\$/g, '')
-            const svg = parseMath(math)
-            html = html.replace(match, svg)
-        })
-    }
-    
-    matches = html.match(inlineRule)
-    if (matches) {
-      matches.forEach(match => {
-        const math = match.replace(/\$/g, '')
-        const svg = parseMath(math)
-        html = html.replace(match, svg)
-      })
-    }
-    return html
+  let matches = html.match(blockRule);
+  if (matches) {
+    matches.forEach((match) => {
+      const math = match.replace(/\$/g, "");
+      const svg = parseMath(math, true);
+      html = html.replace(match, svg);
+    });
   }
 
-  
+  matches = html.match(inlineRule);
+  if (matches) {
+    matches.forEach((match) => {
+      const math = match.replace(/\$/g, "");
+      const svg = parseMath(math, false);
+      html = html.replace(match, svg);
+    });
+  }
+  return html;
+}

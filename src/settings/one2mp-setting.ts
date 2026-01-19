@@ -57,7 +57,7 @@ const loadLegacyDb = async (): Promise<One2MpDb | null> => {
 		return legacyDb;
 	}
 	try {
-		const { default: PouchDB } = await import("pouchdb");
+		const { default: PouchDB } = await import("pouchdb-browser");
 		legacyDb = new PouchDB<One2MpSetting>("one2mp-settings");
 		return legacyDb;
 	} catch (error) {

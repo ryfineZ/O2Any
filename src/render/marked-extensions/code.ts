@@ -16,7 +16,6 @@ import { replaceDivWithSection } from "src/utils/utils";
 import { ObsidianMarkdownRenderer } from "../markdown-render";
 import { One2MpMarkedExtension } from "./extension";
 import { Notice } from "obsidian";
-import hljs from "highlight.js";
 import { MpcardDataManager } from "./mpcard-data";
 import {
 	normalizeMpcardInput,
@@ -48,39 +47,19 @@ export class CodeRenderer extends One2MpMarkedExtension {
 	}
 
 	codeRenderer(code: string, infostring: string | undefined): string {
-		const lang = (infostring || '').match(/^\S*/)?.[0];
-		let highlighted = code.replace(/\n$/, '');
-		try {
-			if (lang && hljs.getLanguage(lang)) {
-				highlighted = hljs.highlight(highlighted, { language: lang }).value;
-			} else {
-				highlighted = hljs.highlightAuto(highlighted).value;
-			}
-		} catch (err) {
-			console.error(err);
-		}
-
-		// 将空格/制表符替换为 &nbsp;，保留缩进，与 NoteToMP 一致
-		const replaceSpaces = (text: string) => {
-			let res = '';
-			let inTag = false;
-			for (const ch of text) {
-				if (ch === '<') {
-					inTag = true; res += ch; continue;
-				}
-				if (ch === '>') {
-					inTag = false; res += ch; continue;
-				}
-				if (inTag) { res += ch; continue; }
-				if (ch === ' ') res += '&nbsp;';
-				else if (ch === '\t') res += '&nbsp;&nbsp;&nbsp;&nbsp;';
-				else res += ch;
-			}
-			return res;
-		};
-
-		highlighted = replaceSpaces(highlighted);
-		const lines = highlighted.split('\n');
+		const lang = (infostring || "").match(/^\S*/)?.[0];
+		const trimmed = code.replace(/\n$/, "");
+		const escapeHtml = (text: string) =>
+			text
+				.replace(/&/g, "&amp;")
+				.replace(/</g, "&lt;")
+				.replace(/>/g, "&gt;")
+				.replace(/"/g, "&quot;")
+				.replace(/'/g, "&#39;");
+		const normalized = escapeHtml(trimmed)
+			.replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;")
+			.replace(/ /g, "&nbsp;");
+		const lines = normalized.split(/\r?\n/);
 		let body = '';
 		for (let i = 0; i < lines.length; i++) {
 			let text = lines[i];
@@ -88,12 +67,12 @@ export class CodeRenderer extends One2MpMarkedExtension {
 			body += '<code>' + text + '</code>';
 		}
 
-		let codeSection = '<section class="code-section code-snippet__fix hljs">';
+		let codeSection = '<section class="code-section code-snippet__fix">';
 		let html = '';
 		if (lang) {
 			html = codeSection + `<pre style="max-width:1000% !important;" class="hljs language-${lang}">${body}</pre></section>`;
 		} else {
-			html = codeSection + `<pre>${body}</pre></section>`;
+			html = codeSection + `<pre class="hljs">${body}</pre></section>`;
 		}
 		return html;
 

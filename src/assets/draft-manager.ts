@@ -53,7 +53,7 @@ const loadDraftDb = async (): Promise<DraftDb | null> => {
 		return draftDb;
 	}
 	try {
-		const { default: PouchDB } = await import("pouchdb");
+		const { default: PouchDB } = await import("pouchdb-browser");
 		const { default: PouchDBFind } = await import("pouchdb-find");
 		PouchDB.plugin(PouchDBFind);
 		draftDb = new PouchDB("one2mp-local-drafts");
