@@ -153,9 +153,21 @@ function dataUrlToBlob(dataUrl: string): Blob {
 }
 
 export function replaceDivWithSection(root: HTMLElement){
-    let html = root.outerHTML.replaceAll(/<div /g, '<section ').replaceAll(/<\/div>/g, '</section>');
+    const html = serializeNode(root)
+        .replaceAll(/<div /g, "<section ")
+        .replaceAll(/<\/div>/g, "</section>");
     return html;
 
+}
+
+export function serializeNode(node: Node): string {
+    return new XMLSerializer().serializeToString(node);
+}
+
+export function serializeChildren(node: ParentNode): string {
+    return Array.from(node.childNodes)
+        .map((child) => serializeNode(child))
+        .join("");
 }
 
 export function removeThinkTags(content: string): string {

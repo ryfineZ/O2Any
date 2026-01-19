@@ -8,6 +8,7 @@
 import { MarkedExtension } from "marked";
 import { sanitizeHTMLToDom } from "obsidian";
 import { One2MpMarkedExtension } from "./extension";
+import { serializeChildren } from "src/utils/utils";
 
 function isHeading(element:Element) {
     // 检查元素是否为标题标签
@@ -70,7 +71,7 @@ export class Summary extends One2MpMarkedExtension {
             this.processHeading(tempDiv, heading)
         }
         
-        return Promise.resolve(tempDiv.innerHTML);
+        return Promise.resolve(serializeChildren(tempDiv));
     }
 
     markedExtension(): MarkedExtension {

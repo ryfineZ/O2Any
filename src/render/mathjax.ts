@@ -1,58 +1,45 @@
 /**
- * new version os mathjax wrapper for render math LaTeX to svg
+ * 使用 Obsidian 内置 MathJax（全局对象）渲染公式为 SVG
  */
 
-import { LiteAdaptor } from 'mathjax-full/js/adaptors/liteAdaptor'
-import { RegisterHTMLHandler } from 'mathjax-full/js/handlers/html'
-import { TeX } from 'mathjax-full/js/input/tex'
-import { AllPackages } from 'mathjax-full/js/input/tex/AllPackages'
-import { mathjax } from 'mathjax-full/js/mathjax'
-import { SVG } from 'mathjax-full/js/output/svg'
+type MathJaxGlobal = {
+  tex2svg?: (tex: string, options?: { display?: boolean }) => Element;
+};
 
-const adaptor = new LiteAdaptor()
-RegisterHTMLHandler(adaptor)
+const serializer = new XMLSerializer();
 
-const mathjax_document = mathjax.document('', {
-  InputJax: new TeX({ packages: AllPackages }),
-  OutputJax: new SVG({ fontCache: 'none' })
-})
-
-const mathjax_options = {
-  em: 16,
-  ex: 8,
-  containerWidth: 1280,
-//   display: true
+function getMathJax(): MathJaxGlobal | null {
+  const mj = (globalThis as typeof globalThis & { MathJax?: MathJaxGlobal }).MathJax;
+  return mj ?? null;
 }
 
-export function parseMath(math: string): string {
-    
-  const node = mathjax_document.convert(math, mathjax_options)
-  
-  return adaptor.innerHTML(node)
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
-const inlineRule = /\$(.*)\$/g // /^(\${1,2})(?!\$)((?:\\.|[^\\\n])*?(?:\\.|[^\\\n\$]))\1/;
-const blockRule = /\$\$(?!<\$\$)([\s\S]*?)\$\$/g;  // /^(\${1,2})\n((?:\\[^]|[^\\])+?)\n\1(?:\n|$)/;
-
-export function parseHTML(html: string): string {
-    let matches = html.match(blockRule)
-    if (matches) {
-        matches.forEach(match => {
-            const math = match.replace(/\$/g, '')
-            const svg = parseMath(math)
-            html = html.replace(match, svg)
-        })
-    }
-    
-    matches = html.match(inlineRule)
-    if (matches) {
-      matches.forEach(match => {
-        const math = match.replace(/\$/g, '')
-        const svg = parseMath(math)
-        html = html.replace(match, svg)
-      })
-    }
-    return html
+function serializeSvg(node: Element): string {
+  const svg = node.tagName.toLowerCase() == "svg" ? node : node.querySelector("svg");
+  if (!svg) {
+    return escapeHtml(node.textContent ?? "");
   }
+  return serializer.serializeToString(svg);
+}
 
-  
+export function parseMath(math: string, display: boolean = false): string {
+  const mj = getMathJax();
+  if (!mj?.tex2svg) {
+    return escapeHtml(math);
+  }
+  try {
+    const node = mj.tex2svg(math, { display });
+    return serializeSvg(node);
+  } catch (error) {
+    console.warn("MathJax 渲染失败", error);
+    return escapeHtml(math);
+  }
+}

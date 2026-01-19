@@ -7,10 +7,8 @@
 		"dev": "node esbuild.config.mjs",
 		"build-old": "node src/assets/css/build-template-css.js && tsc -noEmit && node esbuild.config.mjs production",
 		"build": "tsc -noEmit && node esbuild.config.mjs production",
-		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"test:theme": "ts-node src/theme/test.ts",
-		"test:ds": "ts-node  src/theme/ds-theme.ts",
-		"hello": "ts-node themes/hello.ts"
+		"test:ds": "ts-node  src/theme/ds-theme.ts"
 	},
 	"keywords": [],
 	"author": "张雨帆",
@@ -28,7 +26,6 @@
 		"esbuild-css-modules-plugin": "^3.1.2",
 		"eslint": "^9.15.0",
 		"i18next-scanner": "^4.6.0",
-		"mathjax-full": "^3.2.2",
 		"obsidian": "^1.7.2",
 		"ts-node": "^10.9.2",
 		"tslib": "2.4.0",
@@ -41,11 +38,9 @@
 		"@types/pouchdb": "^6.4.2",
 		"css": "^3.0.0",
 		"css-select": "^5.1.0",
-		"highlight.js": "^11.10.0",
 		"i18next": "^24.2.0",
 		"jsdom": "^26.1.0",
 		"marked": "^15.0.0",
-		"marked-highlight": "^2.2.1",
 		"pouchdb": "^9.0.0",
 		"pouchdb-find": "^9.0.0"
 	}

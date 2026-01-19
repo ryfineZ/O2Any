@@ -563,6 +563,95 @@ CSS for one2mp plugin.
     height: 100%;
 }
 
+
+.one2mp-platform-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 8px 12px;
+    border-bottom: var(--one2mp-border);
+    background-color: var(--background-primary);
+    flex-wrap: wrap;
+}
+
+.one2mp-platform-tab {
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary-alt);
+    color: var(--text-muted);
+    border-radius: var(--radius-s);
+    padding: 6px 10px;
+    font-size: 0.85em;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.one2mp-platform-tab:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.one2mp-platform-tab.one2mp-platform-tab-active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+.one2mp-platform-panels {
+    display: block;
+}
+
+.one2mp-platform-panel {
+    display: none;
+    flex-direction: column;
+}
+
+.one2mp-platform-panel.one2mp-platform-panel-active {
+    display: flex;
+}
+
+.one2mp-platform-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px 20px 4px;
+    max-width: 800px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.one2mp-platform-actions button {
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary-alt);
+    color: var(--text-normal);
+    border-radius: var(--radius-s);
+    padding: 6px 12px;
+    font-size: 0.85em;
+    cursor: pointer;
+}
+
+.one2mp-platform-actions button:hover {
+    background: var(--background-modifier-hover);
+}
+
+.one2mp-platform-preview {
+    border: var(--one2mp-border);
+    border-radius: var(--radius-m);
+    background: var(--background-primary);
+    padding: 12px 16px;
+    max-width: 800px;
+    width: calc(100% - 40px);
+    margin: 8px auto 24px;
+    overflow: auto;
+}
+
+.one2mp-redbook-pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.6;
+    font-size: 0.95em;
+}
+
 .one2mp-preview-title {
     text-align: center;
     font-size: 1.5em;
@@ -748,4 +837,32 @@ CSS for one2mp plugin.
 .one2mp-domtoimage-sandbox {
 	position: fixed;
 	visibility: hidden;
+}
+
+
+@media (max-width: 700px) {
+    .one2mp-platform-tabs {
+        padding: 8px;
+        gap: 6px;
+    }
+
+    .one2mp-platform-tab {
+        padding: 6px 8px;
+        font-size: 0.8em;
+    }
+
+    .one2mp-platform-actions {
+        padding: 8px 12px 4px;
+        gap: 6px;
+    }
+
+    .one2mp-platform-actions button {
+        padding: 6px 10px;
+        font-size: 0.8em;
+    }
+
+    .one2mp-platform-preview {
+        width: calc(100% - 24px);
+        margin: 8px auto 16px;
+    }
 }

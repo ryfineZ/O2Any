@@ -41,7 +41,7 @@ export class ComboBoxComponent extends Component {
     }
 
     private updateOptions() {
-        this.datalist.empty(); //.innerHTML = ""; // 清空已有选项
+        this.datalist.empty();
         this.options.forEach(option => {
             const optionElement = document.createElement("option");
             optionElement.value = option;

@@ -19,7 +19,7 @@ export class MathRenderer extends One2MpMarkedExtension {
         if (type === '') {
             type = 'InlineMath'
         }
-        const svg = parseMath(token.text) 
+        const svg = parseMath(token.text, !inline) 
         if (inline){
             return `<span  class="inline-math">${svg}</span>`;  
         }else{

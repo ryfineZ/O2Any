@@ -36,7 +36,10 @@ import { MPArticleHeader } from "./mp-article-header";
 import { WebViewModal } from "./webview";
 import { PublishConfigModal } from "src/modals/publish-config-modal";
 import { DualIps } from "src/utils/ip-address";
+import { serializeChildren } from "src/utils/utils";
 import type { ThemeSelector } from "../theme/theme-selector";
+import { RedBookParser, RedBookParseResult } from "src/platforms/redbook/redbook-parser";
+import { exportRedBookPackage } from "src/platforms/redbook/redbook-export";
 
 export const VIEW_TYPE_ONE2MP_PREVIEW = "one2mp-article-preview";
 export interface ElectronWindow extends Window {
@@ -82,6 +85,17 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		void this.renderDraft(true);
 	}, 2000);
 
+private activePlatform: "wechat" | "zhihu" | "redbook" = "wechat";
+private platformTabsEl: HTMLDivElement | null = null;
+private wechatPanelEl: HTMLDivElement | null = null;
+private zhihuPanelEl: HTMLDivElement | null = null;
+private redbookPanelEl: HTMLDivElement | null = null;
+private zhihuPreviewEl: HTMLDivElement | null = null;
+private redbookPreviewEl: HTMLDivElement | null = null;
+private redbookParser = new RedBookParser();
+private redbookResult: RedBookParseResult | null = null;
+private redbookResultPath: string | null = null;
+
 	private draftHeader: MPArticleHeader;
 	articleProperties: Map<string, string> = new Map();
 	editorView: EditorView | null = null;
@@ -95,6 +109,7 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 	isActive: boolean = false;
 	renderPreviewer: HTMLDivElement;
 	accountDropdown: DropdownComponent;
+	private wechatHtml: string | null = null;
 	getViewType(): string {
 		return VIEW_TYPE_ONE2MP_PREVIEW;
 	}
@@ -233,25 +248,41 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		const mainDiv = container.createDiv({
 			cls: "one2mp-main-scroll-area",
 		});
-		
-		// 3. Article Metadata Card (Header)
-		this.draftHeader = new MPArticleHeader(this.plugin, mainDiv);
 
-		// 4. Preview Title
-		this.previewTitleEl = mainDiv.createDiv({
+		// 3. Platform Tabs
+		this.platformTabsEl = this.buildPlatformTabs(mainDiv);
+		const panelWrap = mainDiv.createDiv({ cls: "one2mp-platform-panels" });
+
+		// 4. WeChat Panel
+		this.wechatPanelEl = panelWrap.createDiv({
+			cls: "one2mp-platform-panel one2mp-platform-panel-active",
+		});
+
+		// 4.1 Article Metadata Card (Header)
+		this.draftHeader = new MPArticleHeader(this.plugin, this.wechatPanelEl);
+
+		// 4.2 Preview Title
+		this.previewTitleEl = this.wechatPanelEl.createDiv({
 			cls: "one2mp-preview-title",
 		});
 		this.setPreviewTitle();
 
-		// 5. Article Content Render Area
-		this.renderDiv = mainDiv.createDiv({ cls: "render-container" });
+		// 4.3 Article Content Render Area
+		this.renderDiv = this.wechatPanelEl.createDiv({ cls: "render-container" });
 		this.renderDiv.id = "render-div";
-		this.renderPreviewer = mainDiv.createDiv({
+		this.renderPreviewer = this.wechatPanelEl.createDiv({
 			cls: "one2mp-render-preview",
-		})
-		
+		});
 		this.containerDiv = this.renderDiv.createDiv({ cls: "one2mp-article" });
 		this.articleDiv = this.containerDiv.createDiv({ cls: "article-div" });
+
+		// 5. Zhihu Panel
+		this.zhihuPanelEl = panelWrap.createDiv({ cls: "one2mp-platform-panel" });
+		this.buildZhihuPanel(this.zhihuPanelEl);
+
+		// 6. RedBook Panel
+		this.redbookPanelEl = panelWrap.createDiv({ cls: "one2mp-platform-panel" });
+		this.buildRedbookPanel(this.redbookPanelEl);
 	}
 
 	buildToolbar(container: HTMLElement) {
@@ -417,6 +448,182 @@ export class PreviewPanel extends ItemView implements PreviewRender {
             });
 	}
 	
+	private buildPlatformTabs(container: HTMLElement) {
+		const tabs = container.createDiv({ cls: "one2mp-platform-tabs" });
+		const items = [
+			{ id: "wechat", label: $t("views.platform.wechat") },
+			{ id: "zhihu", label: $t("views.platform.zhihu") },
+			{ id: "redbook", label: $t("views.platform.redbook") },
+		];
+		items.forEach((item) => {
+			const btn = tabs.createEl("button", {
+				cls: "one2mp-platform-tab",
+				text: item.label,
+			});
+			btn.dataset.platform = item.id;
+			if (item.id === this.activePlatform) {
+				btn.addClass("one2mp-platform-tab-active");
+			}
+			btn.onclick = () => {
+				this.setActivePlatform(item.id as "wechat" | "zhihu" | "redbook");
+			};
+		});
+		return tabs;
+	}
+
+	private setActivePlatform(platform: "wechat" | "zhihu" | "redbook") {
+		this.activePlatform = platform;
+		const tabs = this.platformTabsEl?.querySelectorAll<HTMLButtonElement>(
+			".one2mp-platform-tab"
+		);
+		if (tabs) {
+			tabs.forEach((tab) => {
+				const isActive = tab.dataset.platform === platform;
+				tab.classList.toggle("one2mp-platform-tab-active", isActive);
+			});
+		}
+		const panels = [
+			{ id: "wechat", el: this.wechatPanelEl },
+			{ id: "zhihu", el: this.zhihuPanelEl },
+			{ id: "redbook", el: this.redbookPanelEl },
+		];
+		panels.forEach((panel) => {
+			if (!panel.el) return;
+			panel.el.classList.toggle(
+				"one2mp-platform-panel-active",
+				panel.id === platform
+			);
+		});
+	}
+
+	private buildZhihuPanel(container: HTMLElement) {
+		const actions = container.createDiv({ cls: "one2mp-platform-actions" });
+		const addBtn = (text: string, action: () => void) => {
+			actions.createEl("button", { text }).onclick = action;
+		};
+		addBtn($t("views.zhihu.copy"), () => {
+			const html = this.getArticleContent();
+			void this.copyHtmlToClipboard(html);
+		});
+		addBtn($t("views.zhihu.open"), () => {
+			this.openUrl("https://zhuanlan.zhihu.com/write");
+		});
+		addBtn($t("views.zhihu.refresh"), () => {
+			void this.refreshZhihuPreview();
+		});
+		this.zhihuPreviewEl = container.createDiv({
+			cls: "one2mp-platform-preview one2mp-platform-zhihu",
+		});
+	}
+
+	private buildRedbookPanel(container: HTMLElement) {
+		const actions = container.createDiv({ cls: "one2mp-platform-actions" });
+		const addBtn = (text: string, action: () => void) => {
+			actions.createEl("button", { text }).onclick = action;
+		};
+		addBtn($t("views.redbook.copy"), () => {
+			const content = this.redbookResult?.text ?? "";
+			void this.copyTextToClipboard(content, $t("views.redbook.copied"));
+		});
+		addBtn($t("views.redbook.export"), () => {
+			void (async () => {
+				const file = this.app.workspace.getActiveFile();
+				if (!file || file.extension !== "md") {
+					new Notice($t("views.redbook.no-active-file"));
+					return;
+				}
+				await exportRedBookPackage(this.app, file, this.redbookParser);
+			})();
+		});
+		addBtn($t("views.redbook.open"), () => {
+			this.openUrl("https://creator.xiaohongshu.com/");
+		});
+		addBtn($t("views.redbook.refresh"), () => {
+			void this.refreshRedbookPreview();
+		});
+		this.redbookPreviewEl = container.createDiv({
+			cls: "one2mp-platform-preview one2mp-platform-redbook",
+		});
+	}
+
+	private async refreshZhihuPreview() {
+		if (!this.zhihuPreviewEl) {
+			return;
+		}
+		const html = this.getArticleContent();
+		this.zhihuPreviewEl.empty();
+		const dom = sanitizeHTMLToDom(html);
+		this.zhihuPreviewEl.appendChild(dom);
+		const root = this.zhihuPreviewEl.firstElementChild as HTMLElement | null;
+		if (root) {
+			const ThemeManager = await this.getThemeManager();
+			if (ThemeManager) {
+				await ThemeManager.getInstance(this.plugin).applyTheme(root);
+			}
+		}
+	}
+
+	private async refreshRedbookPreview() {
+		if (!this.redbookPreviewEl) {
+			return;
+		}
+		const file = this.app.workspace.getActiveFile();
+		if (!file || file.extension !== "md") {
+			this.redbookPreviewEl.setText($t("views.redbook.no-active-file"));
+			return;
+		}
+		const content = await this.app.vault.cachedRead(file);
+		const result = await this.redbookParser.parse(content);
+		this.redbookResult = result;
+		this.redbookResultPath = file.path;
+		this.redbookPreviewEl.empty();
+		const pre = this.redbookPreviewEl.createEl("pre", { text: result.text });
+		pre.addClass("one2mp-redbook-pre");
+	}
+
+	private async copyHtmlToClipboard(html: string) {
+		if (navigator.clipboard?.write && window.ClipboardItem) {
+			try {
+				await navigator.clipboard.write([
+					new ClipboardItem({
+						"text/html": new Blob([html], { type: "text/html" }),
+					}),
+				]);
+				new Notice($t("views.zhihu.copied"));
+				return;
+			} catch (error) {
+				console.warn("复制到剪贴板失败", error);
+			}
+		}
+		if (navigator.clipboard?.writeText) {
+			try {
+				await navigator.clipboard.writeText(html);
+				new Notice($t("views.zhihu.copied"));
+				return;
+			} catch (error) {
+				console.warn("复制到剪贴板失败", error);
+			}
+		}
+		new Notice($t("settings.clipboard-not-supported"));
+	}
+
+	private async copyTextToClipboard(text: string, successMsg: string) {
+		if (!text) {
+			new Notice($t("views.redbook.empty"));
+			return;
+		}
+		if (navigator.clipboard?.writeText) {
+			try {
+				await navigator.clipboard.writeText(text);
+				new Notice(successMsg);
+				return;
+			} catch (error) {
+				console.warn("复制到剪贴板失败", error);
+			}
+		}
+		new Notice($t("settings.clipboard-not-supported"));
+	}
+
 	updateAccountOptions() {
 		const dd = this.accountDropdown;
 		dd.selectEl.empty();
@@ -496,7 +703,7 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 			undefined;
 		const cloned = this.articleDiv.cloneNode(true) as HTMLElement;
 		applyInlineCalloutTextColor(cloned, baseColor);
-		return MpcardDataManager.getInstance().restoreCard(cloned.innerHTML);
+		return MpcardDataManager.getInstance().restoreCard(serializeChildren(cloned));
 	}
 
 	// async getCSS() {
@@ -539,6 +746,7 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		let html = await WechatRender.getInstance(this.plugin, this).parseNote(
 			activeFile.path
 		);
+		this.wechatHtml = html;
 
 		// return; //to see the render tree.
 		const articleSection = createEl("section", {
@@ -575,8 +783,7 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 				item.appendChild(node);
 			}
 		}
-		// return this.articleDiv.innerHTML;
-	}
+			}
 	async renderDraft(force = false) {
 		if (force) {
 			this.allowRender = true;
@@ -586,6 +793,8 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		}
 
 		await this.parseActiveMarkdown();
+		await this.refreshZhihuPreview();
+		await this.refreshRedbookPreview();
 		if (this.articleDiv === null || this.articleDiv.firstChild === null) {
 			return;
 		}

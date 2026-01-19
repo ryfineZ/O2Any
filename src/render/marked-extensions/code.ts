@@ -12,11 +12,10 @@
 
 import { Tokens } from "marked";
 import { $t } from "src/lang/i18n";
-import { replaceDivWithSection } from "src/utils/utils";
+import { replaceDivWithSection, serializeNode } from "src/utils/utils";
 import { ObsidianMarkdownRenderer } from "../markdown-render";
 import { One2MpMarkedExtension } from "./extension";
 import { Notice } from "obsidian";
-import hljs from "highlight.js";
 import { MpcardDataManager } from "./mpcard-data";
 import {
 	normalizeMpcardInput,
@@ -48,55 +47,29 @@ export class CodeRenderer extends One2MpMarkedExtension {
 	}
 
 	codeRenderer(code: string, infostring: string | undefined): string {
-		const lang = (infostring || '').match(/^\S*/)?.[0];
-		let highlighted = code.replace(/\n$/, '');
-		try {
-			if (lang && hljs.getLanguage(lang)) {
-				highlighted = hljs.highlight(highlighted, { language: lang }).value;
-			} else {
-				highlighted = hljs.highlightAuto(highlighted).value;
-			}
-		} catch (err) {
-			console.error(err);
+		const lang = (infostring || "").match(/^\S*/)?.[0];
+		const content = code.replace(/\n$/, "");
+		const escaped = CodeRenderer.escapeHtml(content);
+		const lines = escaped.split("\n");
+		let body = "";
+		for (const line of lines) {
+			const text = line.length === 0 ? "<br>" : line;
+			body += `<code>${text}</code>`;
 		}
-
-		// 将空格/制表符替换为 &nbsp;，保留缩进，与 NoteToMP 一致
-		const replaceSpaces = (text: string) => {
-			let res = '';
-			let inTag = false;
-			for (const ch of text) {
-				if (ch === '<') {
-					inTag = true; res += ch; continue;
-				}
-				if (ch === '>') {
-					inTag = false; res += ch; continue;
-				}
-				if (inTag) { res += ch; continue; }
-				if (ch === ' ') res += '&nbsp;';
-				else if (ch === '\t') res += '&nbsp;&nbsp;&nbsp;&nbsp;';
-				else res += ch;
-			}
-			return res;
-		};
-
-		highlighted = replaceSpaces(highlighted);
-		const lines = highlighted.split('\n');
-		let body = '';
-		for (let i = 0; i < lines.length; i++) {
-			let text = lines[i];
-			if (text.length === 0) text = '<br>';
-			body += '<code>' + text + '</code>';
-		}
-
-		let codeSection = '<section class="code-section code-snippet__fix hljs">';
-		let html = '';
+		const codeSection = '<section class="code-section code-snippet__fix">';
 		if (lang) {
-			html = codeSection + `<pre style="max-width:1000% !important;" class="hljs language-${lang}">${body}</pre></section>`;
-		} else {
-			html = codeSection + `<pre>${body}</pre></section>`;
+			return codeSection + `<pre class="hljs language-${lang}">${body}</pre></section>`;
 		}
-		return html;
+		return codeSection + `<pre>${body}</pre></section>`;
+	}
 
+	private static escapeHtml(text: string): string {
+		return text
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;")
+			.replace(/\"/g, "&quot;")
+			.replace(/'/g, "&#39;");
 	}
 
 	static getMathType(lang: string | null) {
@@ -129,7 +102,7 @@ export class CodeRenderer extends One2MpMarkedExtension {
 			}
 
 		}
-		return root.outerHTML
+		return serializeNode(root)
 	}
 	renderAdmonitionAsync(_token: Tokens.Generic, _type: string) {
 		const renderer = ObsidianMarkdownRenderer.getInstance(this.plugin.app);
@@ -153,7 +126,7 @@ export class CodeRenderer extends One2MpMarkedExtension {
 			}
 
 		}
-		return replaceDivWithSection(root)//root.outerHTML
+		return replaceDivWithSection(root)
 	}
 
 	async renderMermaidAsync(token: Tokens.Generic) {

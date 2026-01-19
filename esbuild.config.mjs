@@ -1,5 +1,6 @@
 import esbuild from "esbuild";
 import process from "process";
+import fs from "fs/promises";
 import builtins from "builtin-modules";
 
 const banner =
@@ -10,6 +11,19 @@ if you want to view the source, please visit the github repository of this plugi
 `;
 
 const prod = (process.argv[2] === "production");
+
+
+const patchMarked = {
+	name: "patch-marked",
+	setup(build) {
+		build.onLoad({ filter: /marked\.esm\.js$/ }, async (args) => {
+			let contents = await fs.readFile(args.path, "utf8");
+			contents = contents.replace(/\\x00-\\x1f/g, "");
+			contents = contents.replace(/\\u0000-\\u001f/g, "");
+			return { contents, loader: "js" };
+		});
+	},
+};
 
 const context = await esbuild.context({
 	banner: {
@@ -37,6 +51,7 @@ const context = await esbuild.context({
 	logLevel: "info",
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
+	plugins: [patchMarked],
 	outfile: "main.js",
 	minify: prod,
 	loader: {

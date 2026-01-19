@@ -140,7 +140,7 @@ export class ProofService {
 		const dom = sanitizeHTMLToDom(content);
 
         this.tooltip.empty()
-		this.tooltip.appendChild(dom); //.innerHTML = content;
+		this.tooltip.appendChild(dom);
 
         const rect = (e.target as HTMLElement).getBoundingClientRect();
         

@@ -209,8 +209,8 @@
     "other-type-has-not-been-implemented": "Other type not implemented.",
     "preview-draft": "Preview draft",
     "previewer": {
-    "article-copied-to-clipboard": "Article copied to clipboard.",
-    "open-url-not-supported": "Opening links is not supported on this platform.",
+      "article-copied-to-clipboard": "Article copied to clipboard.",
+      "open-url-not-supported": "Opening links is not supported on this platform.",
       "article-render-failed": "Failed to render article.",
       "article-title": "Article title",
       "copy-article-to-clipboard": "Copy article to clipboard",
@@ -241,6 +241,26 @@
       "error-downloading-themes": "Error downloading themes.",
       "failed-to-fetch-themes-json-themesrespon": "Failed to fetch themes.json: {0}",
       "total-themes-length-themes-downloaded": "Total {0} themes downloaded."
+    },
+    "platform": {
+      "wechat": "WeChat",
+      "zhihu": "Zhihu",
+      "redbook": "Xiaohongshu"
+    },
+    "zhihu": {
+      "copy": "Copy",
+      "open": "Open Zhihu",
+      "refresh": "Refresh",
+      "copied": "Copied to clipboard."
+    },
+    "redbook": {
+      "copy": "Copy Text",
+      "export": "Export Package",
+      "open": "Open Xiaohongshu",
+      "refresh": "Refresh",
+      "copied": "Text copied.",
+      "empty": "No text to copy.",
+      "no-active-file": "No active Markdown file."
     }
   },
   "wechat-api": {

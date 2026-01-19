@@ -46,35 +46,35 @@
     "space": "空格"
   },
   "publish-config": {
-      "title": "文章发布配置",
-      "mp-card-settings": "公众号名片配置",
-      "paste-html-guide": "请从浏览器插件或公众号后台复制名片 HTML 代码 (<mp-common-profile...>) 并粘贴到下方：",
-      "parse-and-save": "解析并保存",
-      "card-updated": "名片信息已更新",
-      "parse-failed": "解析失败，请检查 HTML 代码格式",
-      "manual-edit": "手动编辑 (高级)",
-      "other-settings": "其他发布参数",
-      "card-tab": "公众号名片",
-      "options-tab": "文章参数",
-      "mpcard-desc": "请粘贴公众号后台中插入名片后复制到的 HTML 代码。",
-      "copy-script": "复制提取脚本",
-      "script-copied": "脚本已复制到剪贴板。",
-      "mpcard-input": "名片 HTML",
-      "mpcard-input-desc": "粘贴 <mp-common-profile> 或包含它的 <section> 代码。",
-      "mpcard-empty": "尚未配置公众号名片。",
-      "save-mpcard": "解析并保存",
-      "clear-mpcard": "清空名片",
-      "no-account": "未选择公众号账号。",
-      "invalid-mpcard": "名片内容无效或缺少 data-id。",
-      "mpcard-saved": "公众号名片已保存。",
-      "no-active-file": "未找到可编辑的 Markdown 文件。",
-      "field-title": "标题",
-      "author": "作者",
-      "digest": "摘要",
-      "source-url": "原文链接",
-      "open-comment": "开启评论",
-      "only-fans": "仅粉丝可评论",
-      "cover-empty": "未设置封面图。"
+    "title": "文章发布配置",
+    "mp-card-settings": "公众号名片配置",
+    "paste-html-guide": "请从浏览器插件或公众号后台复制名片 HTML 代码 (<mp-common-profile...>) 并粘贴到下方：",
+    "parse-and-save": "解析并保存",
+    "card-updated": "名片信息已更新",
+    "parse-failed": "解析失败，请检查 HTML 代码格式",
+    "manual-edit": "手动编辑 (高级)",
+    "other-settings": "其他发布参数",
+    "card-tab": "公众号名片",
+    "options-tab": "文章参数",
+    "mpcard-desc": "请粘贴公众号后台中插入名片后复制到的 HTML 代码。",
+    "copy-script": "复制提取脚本",
+    "script-copied": "脚本已复制到剪贴板。",
+    "mpcard-input": "名片 HTML",
+    "mpcard-input-desc": "粘贴 <mp-common-profile> 或包含它的 <section> 代码。",
+    "mpcard-empty": "尚未配置公众号名片。",
+    "save-mpcard": "解析并保存",
+    "clear-mpcard": "清空名片",
+    "no-account": "未选择公众号账号。",
+    "invalid-mpcard": "名片内容无效或缺少 data-id。",
+    "mpcard-saved": "公众号名片已保存。",
+    "no-active-file": "未找到可编辑的 Markdown 文件。",
+    "field-title": "标题",
+    "author": "作者",
+    "digest": "摘要",
+    "source-url": "原文链接",
+    "open-comment": "开启评论",
+    "only-fans": "仅粉丝可评论",
+    "cover-empty": "未设置封面图。"
   },
   "render": {
     "admonition-failed": "<section>Admonition渲染失败</section>",
@@ -93,7 +93,7 @@
     "rendering": "渲染中...",
     "failed-to-parse-custom-css": "定制风格存在CSS语法错误：{0}"
   },
-    "settings": {
+  "settings": {
     "account-info": "账号信息",
     "account-name": "公众号名称",
     "account-name-for-your-wechat-official": "微信公众号名称",
@@ -182,7 +182,7 @@
     "you-should-add-this-ip-to-ip-whitelist-o": "请将此IP添加到IP白名单中。点击下方账号信息中的图片访问“微信公众号平台”进行设置。",
     "your-wechat-official-account": "您的微信公众号"
   },
-    "views": {
+  "views": {
     "article-header": {
       "article-title": "文章标题",
       "article-title-placeholder": "输入文章标题",
@@ -217,8 +217,8 @@
     "other-type-has-not-been-implemented": "其他类型尚未实现。",
     "preview-draft": "预览草稿",
     "previewer": {
-    "article-copied-to-clipboard": "文章已复制到剪贴板。",
-    "open-url-not-supported": "当前平台不支持打开链接。",
+      "article-copied-to-clipboard": "文章已复制到剪贴板。",
+      "open-url-not-supported": "当前平台不支持打开链接。",
       "article-render-failed": "文章渲染失败。",
       "article-title": "文章标题",
       "copy-article-to-clipboard": "复制文章到剪贴板",
@@ -249,6 +249,26 @@
       "total-themes-length-themes-downloaded": "共下载{0}个主题。",
       "download-started": "开始下载主题，请稍候…",
       "download-summary": "主题下载完成：成功 {0} 个，失败 {1} 个，跳过 {2} 个"
+    },
+    "platform": {
+      "wechat": "公众号",
+      "zhihu": "知乎",
+      "redbook": "小红书"
+    },
+    "zhihu": {
+      "copy": "复制",
+      "open": "打开知乎",
+      "refresh": "刷新",
+      "copied": "已复制到剪贴板。"
+    },
+    "redbook": {
+      "copy": "复制文案",
+      "export": "导出素材包",
+      "open": "打开小红书",
+      "refresh": "刷新",
+      "copied": "小红书文案已复制。",
+      "empty": "没有可复制的文案。",
+      "no-active-file": "未找到可编辑的 Markdown 文件。"
     }
   },
   "wechat-api": {

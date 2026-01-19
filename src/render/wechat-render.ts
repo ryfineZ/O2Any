@@ -31,6 +31,7 @@ import { Summary } from "./marked-extensions/summary";
 import { Image } from "./marked-extensions/image";
 import { stripTemplateMarkerLines } from "src/utils/template-markers";
 import { parseFrontmatter } from "src/utils/frontmatter";
+import { serializeChildren } from "src/utils/utils";
 // import { ListItem } from './marked-extensions/list-item'
 
 const markedOptiones = {
@@ -208,7 +209,7 @@ export class WechatRender {
 		wrapper.querySelectorAll('ol li, ul li').forEach((li) => {
 			const hasMedia = li.querySelector('img, video, figure');
 			// 彻底清理空白字符、<br> 和空标签
-			const content = li.innerHTML
+			const content = serializeChildren(li)
 				.replace(/<br\s*\/?>/gi, '')
 				.replace(/&nbsp;/gi, '')
 				.replace(/\u00A0/g, '')
@@ -221,7 +222,7 @@ export class WechatRender {
 				li.remove();
 			}
 		});
-		return wrapper.innerHTML;
+		return serializeChildren(wrapper);
 	}
 
 	public async parseNote(path: string) {
