@@ -749,3 +749,31 @@ CSS for one2mp plugin.
 	position: fixed;
 	visibility: hidden;
 }
+
+
+/* 轻量代码高亮（主题自适配） */
+.one2mp .o2any-codeblock {
+	font-family: var(--font-monospace);
+}
+
+.one2mp .o2any-codeblock .o2any-token-keyword {
+	color: var(--text-accent);
+	font-weight: 600;
+}
+
+.one2mp .o2any-codeblock .o2any-token-string {
+	color: var(--text-accent-hover);
+}
+
+.one2mp .o2any-codeblock .o2any-token-number {
+	color: var(--text-accent-hover);
+}
+
+.one2mp .o2any-codeblock .o2any-token-comment {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.one2mp .o2any-codeblock .o2any-token-operator {
+	color: var(--text-normal);
+}

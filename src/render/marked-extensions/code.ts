@@ -46,23 +46,216 @@ export class CodeRenderer extends One2MpMarkedExtension {
 		return new Blob([byteArray], { type: 'image/png' });
 	}
 
+
+	private getHighlightProfile(lang: string | undefined) {
+		if (!lang) return null;
+		const normalized = lang.toLowerCase();
+		const jsKeywords = new Set([
+			"const", "let", "var", "function", "return", "if", "else", "for", "while",
+			"switch", "case", "break", "continue", "class", "new", "this", "try",
+			"catch", "finally", "throw", "import", "export", "from", "extends", "super",
+			"await", "async", "typeof", "instanceof", "in", "of", "interface", "type",
+			"enum", "public", "private", "protected", "readonly", "implements",
+			"constructor", "static", "get", "set"
+		]);
+		const pyKeywords = new Set([
+			"def", "class", "import", "from", "return", "if", "elif", "else", "for",
+			"while", "try", "except", "finally", "with", "as", "pass", "break",
+			"continue", "lambda", "yield", "True", "False", "None"
+		]);
+		const jsonKeywords = new Set(["true", "false", "null"]);
+		const shellKeywords = new Set([
+			"if", "then", "fi", "for", "do", "done", "case", "esac", "function", "in",
+			"while", "until", "return", "export", "local", "readonly"
+		]);
+		const profiles: Record<string, {
+			keywords: Set<string>;
+			lineComment?: string;
+			blockComment?: { start: string; end: string };
+			allowBacktick?: boolean;
+		}> = {
+			js: { keywords: jsKeywords, lineComment: "//", blockComment: { start: "/*", end: "*/" }, allowBacktick: true },
+			javascript: { keywords: jsKeywords, lineComment: "//", blockComment: { start: "/*", end: "*/" }, allowBacktick: true },
+			ts: { keywords: jsKeywords, lineComment: "//", blockComment: { start: "/*", end: "*/" }, allowBacktick: true },
+			typescript: { keywords: jsKeywords, lineComment: "//", blockComment: { start: "/*", end: "*/" }, allowBacktick: true },
+			json: { keywords: jsonKeywords },
+			py: { keywords: pyKeywords, lineComment: "#" },
+			python: { keywords: pyKeywords, lineComment: "#" },
+			sh: { keywords: shellKeywords, lineComment: "#" },
+			bash: { keywords: shellKeywords, lineComment: "#" },
+			shell: { keywords: shellKeywords, lineComment: "#" },
+			zsh: { keywords: shellKeywords, lineComment: "#" },
+		};
+		return profiles[normalized] || null;
+	}
+
+	private escapeHtml(text: string) {
+		return text
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;")
+			.replace(/"/g, "&quot;")
+			.replace(/'/g, "&#39;");
+	}
+
+	private preserveSpaces(text: string) {
+		return text
+			.replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;")
+			.replace(/ /g, "&nbsp;");
+	}
+
+	private isIdentifierStart(char: string) {
+		const code = char.charCodeAt(0);
+		return (
+			(code >= 65 && code <= 90) ||
+			(code >= 97 && code <= 122) ||
+			char === "_" ||
+			char === "$"
+		);
+	}
+
+	private isIdentifierPart(char: string) {
+		const code = char.charCodeAt(0);
+		return (
+			(code >= 48 && code <= 57) ||
+			(code >= 65 && code <= 90) ||
+			(code >= 97 && code <= 122) ||
+			char === "_" ||
+			char === "$"
+		);
+	}
+
+	private highlightLine(
+		line: string,
+		state: { inBlockComment: boolean; inString: boolean; stringChar: string },
+		profile: NonNullable<ReturnType<CodeRenderer["getHighlightProfile"]>>
+	) {
+		const tokens: Array<{ type: string; text: string }> = [];
+		let i = 0;
+		const pushToken = (type: string, text: string) => {
+			if (!text) return;
+			tokens.push({ type, text });
+		};
+		while (i < line.length) {
+			const current = line[i];
+
+			if (state.inBlockComment && profile.blockComment) {
+				const end = line.indexOf(profile.blockComment.end, i);
+				if (end >= 0) {
+					pushToken("comment", line.slice(i, end + profile.blockComment.end.length));
+					i = end + profile.blockComment.end.length;
+					state.inBlockComment = false;
+					continue;
+				}
+				pushToken("comment", line.slice(i));
+				i = line.length;
+				continue;
+			}
+
+			if (state.inString) {
+				let text = "";
+				while (i < line.length) {
+					const ch = line[i];
+					text += ch;
+					if (ch === "\\" && i + 1 < line.length) {
+						text += line[i + 1];
+						i += 2;
+						continue;
+					}
+					i += 1;
+					if (ch === state.stringChar) {
+						state.inString = false;
+						break;
+					}
+				}
+				pushToken("string", text);
+				continue;
+			}
+
+			if (profile.lineComment && line.startsWith(profile.lineComment, i)) {
+				pushToken("comment", line.slice(i));
+				break;
+			}
+
+			if (profile.blockComment && line.startsWith(profile.blockComment.start, i)) {
+				state.inBlockComment = true;
+				continue;
+			}
+
+			if (current === "'" || current === '"' || (current === "`" && profile.allowBacktick)) {
+				state.inString = true;
+				state.stringChar = current;
+				continue;
+			}
+
+			if (current === " " || current === "\t") {
+				let start = i;
+				while (i < line.length && (line[i] === " " || line[i] === "\t")) i += 1;
+				pushToken("plain", line.slice(start, i));
+				continue;
+			}
+
+			const code = current.charCodeAt(0);
+			if ((code >= 48 && code <= 57) || (current === "." && i + 1 < line.length && line[i + 1] >= "0" && line[i + 1] <= "9")) {
+				let start = i;
+				i += 1;
+				while (i < line.length) {
+					const c = line[i];
+					if ((c >= "0" && c <= "9") || c === "." || c === "_" || c === "x" || c === "X" || (c >= "a" && c <= "f") || (c >= "A" && c <= "F")) {
+						i += 1;
+						continue;
+					}
+					break;
+				}
+				pushToken("number", line.slice(start, i));
+				continue;
+			}
+
+			if (this.isIdentifierStart(current)) {
+				let start = i;
+				i += 1;
+				while (i < line.length && this.isIdentifierPart(line[i])) i += 1;
+				const word = line.slice(start, i);
+				if (profile.keywords.has(word)) {
+					pushToken("keyword", word);
+				} else {
+					pushToken("plain", word);
+				}
+				continue;
+			}
+
+			pushToken("plain", current);
+			i += 1;
+		}
+
+		const html = tokens
+			.map((token) => {
+				const escaped = this.preserveSpaces(this.escapeHtml(token.text));
+				if (token.type === "plain") return escaped;
+				return `<span class="o2any-token-${token.type}">${escaped}</span>`;
+			})
+			.join("");
+		return { html, state };
+	}
+
 	codeRenderer(code: string, infostring: string | undefined): string {
 		const lang = (infostring || "").match(/^\S*/)?.[0];
 		const trimmed = code.replace(/\n$/, "");
-		const escapeHtml = (text: string) =>
-			text
-				.replace(/&/g, "&amp;")
-				.replace(/</g, "&lt;")
-				.replace(/>/g, "&gt;")
-				.replace(/"/g, "&quot;")
-				.replace(/'/g, "&#39;");
-		const normalized = escapeHtml(trimmed)
-			.replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;")
-			.replace(/ /g, "&nbsp;");
-		const lines = normalized.split(/\r?\n/);
+		const profile = this.getHighlightProfile(lang || "");
+		const lines = trimmed.split(/\r?\n/);
 		let body = '';
-		for (let i = 0; i < lines.length; i++) {
-			let text = lines[i];
+		const state = { inBlockComment: false, inString: false, stringChar: "" };
+		for (const line of lines) {
+			let text = line;
+			if (profile) {
+				const result = this.highlightLine(line, state, profile);
+				text = result.html;
+				state.inBlockComment = result.state.inBlockComment;
+				state.inString = result.state.inString;
+				state.stringChar = result.state.stringChar;
+			} else {
+				text = this.preserveSpaces(this.escapeHtml(line));
+			}
 			if (text.length === 0) text = '<br>';
 			body += '<code>' + text + '</code>';
 		}
@@ -70,9 +263,9 @@ export class CodeRenderer extends One2MpMarkedExtension {
 		let codeSection = '<section class="code-section code-snippet__fix">';
 		let html = '';
 		if (lang) {
-			html = codeSection + `<pre style="max-width:1000% !important;" class="hljs language-${lang}">${body}</pre></section>`;
+			html = codeSection + `<pre style="max-width:1000% !important;" class="hljs o2any-codeblock language-${lang}">${body}</pre></section>`;
 		} else {
-			html = codeSection + `<pre class="hljs">${body}</pre></section>`;
+			html = codeSection + `<pre class="hljs o2any-codeblock">${body}</pre></section>`;
 		}
 		return html;
 
