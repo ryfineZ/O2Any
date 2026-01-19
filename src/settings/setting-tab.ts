@@ -493,7 +493,7 @@ export class One2MpSettingTab extends PluginSettingTab {
 			}
 			try {
 				const content = await this.app.vault.read(file);
-				await this.applyImportedSettings(content);
+				this.applyImportedSettings(content);
 				modal.close();
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
@@ -505,7 +505,7 @@ export class One2MpSettingTab extends PluginSettingTab {
 		modal.open();
 	}
 
-	private async applyImportedSettings(content: string) {
+	private applyImportedSettings(content: string) {
 		let importedData: One2MpSetting;
 		try {
 			importedData = JSON.parse(content);
@@ -545,7 +545,7 @@ export class One2MpSettingTab extends PluginSettingTab {
 						void (async () => {
 							try {
 								const content = loadEvent.target?.result as string;
-								await this.applyImportedSettings(content);
+								this.applyImportedSettings(content);
 							} catch (error) {
 								const message =
 									error instanceof Error

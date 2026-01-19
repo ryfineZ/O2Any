@@ -4,7 +4,6 @@
 */
 
 import { App, Component, MarkdownRenderChild, MarkdownRenderer } from "obsidian";
-import domtoimage from './dom-to-image-more';
 export class ObsidianMarkdownRenderer {
     private static instance: ObsidianMarkdownRenderer;
     previewEl: HTMLElement
@@ -93,12 +92,92 @@ export class ObsidianMarkdownRenderer {
         return nodes[index]
     }
    
-    public async domToImage(
-        element: Element,
-        options: Record<string, unknown> = {}
-    ): Promise<string> {
-        return await domtoimage.toPng(element, options)
-    }
+	private svgToDataUrl(svg: SVGElement, width?: number, height?: number): string {
+		const clone = svg.cloneNode(true) as SVGElement;
+		if (!clone.getAttribute("xmlns")) {
+			clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+		}
+		if (width) {
+			clone.setAttribute("width", String(width));
+		}
+		if (height) {
+			clone.setAttribute("height", String(height));
+		}
+		let finalWidth = width;
+		let finalHeight = height;
+		if (!finalWidth || !finalHeight) {
+			const rect = svg.getBoundingClientRect();
+			finalWidth = finalWidth || Math.round(rect.width);
+			finalHeight = finalHeight || Math.round(rect.height);
+		}
+		if (!finalWidth || !finalHeight) {
+			const viewBox = (svg as SVGSVGElement).viewBox?.baseVal;
+			if (viewBox && viewBox.width && viewBox.height) {
+				finalWidth = finalWidth || Math.round(viewBox.width);
+				finalHeight = finalHeight || Math.round(viewBox.height);
+			}
+		}
+		if (finalWidth && !clone.getAttribute("width")) {
+			clone.setAttribute("width", String(finalWidth));
+		}
+		if (finalHeight && !clone.getAttribute("height")) {
+			clone.setAttribute("height", String(finalHeight));
+		}
+
+		const serialized = new XMLSerializer().serializeToString(clone);
+		const encoder = new TextEncoder();
+		const uint8Array = encoder.encode(serialized);
+		let binary = "";
+		for (const byte of uint8Array) {
+			binary += String.fromCharCode(byte);
+		}
+		const base64 = btoa(binary);
+		return `data:image/svg+xml;base64,${base64}`;
+	}
+
+	private elementToDataUrl(
+		element: Element,
+		options: Record<string, unknown> = {}
+	): string | null {
+		if (element instanceof HTMLCanvasElement) {
+			return element.toDataURL("image/png");
+		}
+
+		if (element instanceof HTMLImageElement && element.src) {
+			return element.src;
+		}
+
+		const canvas = element.querySelector("canvas");
+		if (canvas instanceof HTMLCanvasElement) {
+			return canvas.toDataURL("image/png");
+		}
+
+		const img = element.querySelector("img");
+		if (img instanceof HTMLImageElement && img.src) {
+			return img.src;
+		}
+
+		const svg = element instanceof SVGElement ? element : element.querySelector("svg");
+		if (svg instanceof SVGElement) {
+			const width = typeof options.width === "number" ? options.width : undefined;
+			const height = typeof options.height === "number" ? options.height : undefined;
+			return this.svgToDataUrl(svg, width, height);
+		}
+
+		return null;
+	}
+
+	public async domToImage(
+		element: Element,
+		options: Record<string, unknown> = {}
+	): Promise<string> {
+		const dataUrl = this.elementToDataUrl(element, options);
+		await Promise.resolve();
+		if (!dataUrl) {
+			throw new Error("无法生成元素截图数据");
+		}
+		return dataUrl;
+	}
 	waitForSelector(
 		container: HTMLElement,
 		selector: string,
