@@ -195,8 +195,7 @@ export class One2MpSettingTab extends PluginSettingTab {
                     .setTooltip($t("settings.click-to-connect-wechat-server"))
                     .setIcon("plug-zap")
                     .setButtonText($t("settings.test-connection"))
-                    .onClick(() => {
-                        void (async () => {
+                    .onClick(async () => {
                             const success = await this.plugin.TestAccessToken(
                                 account.accountName
                             );
@@ -205,7 +204,6 @@ export class One2MpSettingTab extends PluginSettingTab {
                             } else {
                                 new Notice($t("settings.failed-to-connect-to-wechat-server"));
                             }
-                        })();
                     });
             });
             
@@ -306,7 +304,7 @@ export class One2MpSettingTab extends PluginSettingTab {
              let storedIps: DualIps = {};
              try {
                  storedIps = JSON.parse(this.plugin.settings.ipAddress || "{}");
-             } catch (e) {
+             } catch (_error) {
                  // Fallback for legacy string format or empty
                  storedIps = { direct: this.plugin.settings.ipAddress }; 
              }
@@ -362,14 +360,12 @@ export class One2MpSettingTab extends PluginSettingTab {
 					.setTooltip(
 						$t("views.theme-manager.download-predefined-custom-themes")
 					)
-					.onClick(() => {
-						void (async () => {
+					.onClick(async () => {
 							const { ThemeManager } = await import(
 								"src/theme/theme-manager"
 							);
 							new Notice($t("views.theme-manager.download-started"));
 							void ThemeManager.getInstance(this.plugin).downloadThemes();
-						})();
 					});
 			});
 
@@ -542,21 +538,19 @@ export class One2MpSettingTab extends PluginSettingTab {
 
 					const reader = new FileReader();
 					reader.onload = (loadEvent) => {
-						void (async () => {
-							try {
-								const content = loadEvent.target?.result as string;
-								this.applyImportedSettings(content);
-							} catch (error) {
-								const message =
-									error instanceof Error
-										? error.message
-										: String(error);
-								new Notice(
-									`${$t("settings.settings-imported-failed")}${message}`
-								);
-								console.error(error);
-							}
-						})();
+						try {
+							const content = loadEvent.target?.result as string;
+							this.applyImportedSettings(content);
+						} catch (error) {
+							const message =
+								error instanceof Error
+									? error.message
+									: String(error);
+							new Notice(
+								`${$t("settings.settings-imported-failed")}${message}`
+							);
+							console.error(error);
+						}
 					};
 
 					reader.readAsText(file);
