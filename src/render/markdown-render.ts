@@ -134,11 +134,43 @@ export class ObsidianMarkdownRenderer {
 		const base64 = btoa(binary);
 		return `data:image/svg+xml;base64,${base64}`;
 	}
+	private async loadImage(src: string): Promise<HTMLImageElement> {
+		return new Promise((resolve, reject) => {
+			const img = new Image();
+			img.onload = () => resolve(img);
+			img.onerror = (error) => {
+				const message =
+					error instanceof Error
+						? error.message
+						: typeof error === "string"
+								? error
+								: JSON.stringify(error);
+				reject(new Error(message));
+			};
+			img.src = src;
+		});
+	}
 
-	private elementToDataUrl(
+	private async svgToPngDataUrl(svg: SVGElement, width?: number, height?: number): Promise<string> {
+		const svgDataUrl = this.svgToDataUrl(svg, width, height);
+		const image = await this.loadImage(svgDataUrl);
+		const canvas = document.createElement('canvas');
+		const dpr = window.devicePixelRatio || 1;
+		canvas.width = image.width * dpr;
+		canvas.height = image.height * dpr;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) {
+			throw new Error('无法获取 Canvas 上下文');
+		}
+		ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+		return canvas.toDataURL('image/png');
+	}
+
+
+	private async elementToDataUrl(
 		element: Element,
 		options: Record<string, unknown> = {}
-	): string | null {
+	): Promise<string | null> {
 		if (element instanceof HTMLCanvasElement) {
 			return element.toDataURL("image/png");
 		}
@@ -161,23 +193,24 @@ export class ObsidianMarkdownRenderer {
 		if (svg instanceof SVGElement) {
 			const width = typeof options.width === "number" ? options.width : undefined;
 			const height = typeof options.height === "number" ? options.height : undefined;
-			return this.svgToDataUrl(svg, width, height);
+			return await this.svgToPngDataUrl(svg, width, height);
 		}
 
 		return null;
 	}
 
+
 	public async domToImage(
 		element: Element,
 		options: Record<string, unknown> = {}
 	): Promise<string> {
-		const dataUrl = this.elementToDataUrl(element, options);
-		await Promise.resolve();
+		const dataUrl = await this.elementToDataUrl(element, options);
 		if (!dataUrl) {
 			throw new Error("无法生成元素截图数据");
 		}
 		return dataUrl;
 	}
+
 	waitForSelector(
 		container: HTMLElement,
 		selector: string,
