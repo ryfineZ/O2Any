@@ -8,7 +8,7 @@
 
 import { MarkedExtension, Tokens } from "marked";
 import { sanitizeHTMLToDom, TAbstractFile, TFile } from "obsidian";
-import { serializeChildren } from "src/utils/utils";
+import { serializeChildren } from "../../utils/dom";
 import { One2MpMarkedExtension } from "./extension";
 
 

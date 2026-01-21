@@ -4,7 +4,8 @@
  */
 import { App } from "obsidian";
 import { $t } from 'src/lang/i18n';
-import { fetchImageBlob, serializeNode } from 'src/utils/utils';
+import { fetchImageBlob } from 'src/utils/utils';
+import { serializeNode } from "../utils/dom";
 import { WechatClient } from './../wechat-api/wechat-client';
 // 生成上传到微信素材库的文件名
 function imageFileName(mime: string, fallbackExt?: string) {

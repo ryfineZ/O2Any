@@ -15,7 +15,7 @@ import { ObsidianMarkdownRenderer } from "../markdown-render";
 import { One2MpMarkedExtension } from "./extension";
 import { $t } from "src/lang/i18n";
 import { parseFrontmatter } from "src/utils/frontmatter";
-import { serializeNode } from "src/utils/utils";
+import { serializeNode } from "../../utils/dom";
 
 declare module "obsidian" {
 	interface Vault {

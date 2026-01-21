@@ -2,7 +2,7 @@
  * Url handling
  */
 import { App, sanitizeHTMLToDom, TAbstractFile, TFile } from 'obsidian';
-import { serializeChildren } from "src/utils/utils";
+import { serializeChildren } from './dom';
 
 export function isMarkdownFile(file: TFile | TAbstractFile) {
 	let ext = ''

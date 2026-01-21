@@ -11,6 +11,7 @@
 
 import { Marked, Tokens, Renderer } from "marked";
 import { sanitizeHTMLToDom } from "obsidian";
+import { serializeChildren } from "../utils/dom";
 import One2MpPlugin from "src/main";
 import { WechatClient } from "../wechat-api/wechat-client";
 import { BlockquoteRenderer } from "./marked-extensions/blockquote";

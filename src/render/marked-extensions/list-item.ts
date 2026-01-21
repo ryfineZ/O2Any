@@ -7,7 +7,7 @@
 import { Tokens, MarkedExtension } from "marked";
 import { One2MpMarkedExtension } from "./extension";
 import { sanitizeHTMLToDom } from "obsidian";
-import { serializeChildren, serializeNode } from "src/utils/utils";
+import { serializeChildren, serializeNode } from "../../utils/dom";
 
 export class ListItem extends One2MpMarkedExtension {
     postprocess(html: string): Promise<string> {

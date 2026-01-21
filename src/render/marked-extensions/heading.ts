@@ -7,7 +7,7 @@
 import { MarkedExtension } from "marked";
 import { One2MpMarkedExtension } from "./extension";
 import { sanitizeHTMLToDom } from "obsidian";
-import { serializeChildren } from "src/utils/utils";
+import { serializeChildren } from "../../utils/dom";
 
 export class Heading extends One2MpMarkedExtension {
 	postprocess(html: string): Promise<string> {
