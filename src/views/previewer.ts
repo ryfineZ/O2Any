@@ -18,6 +18,7 @@ import {
 	WorkspaceLeaf,
 } from "obsidian";
 import { $t } from "src/lang/i18n";
+import { serializeChildren } from "../utils/dom";
 import One2MpPlugin from "src/main";
 import { ObsidianMarkdownRenderer } from "src/render/markdown-render";
 import { PreviewRender } from "src/render/marked-extensions/extension";
@@ -496,7 +497,7 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 			undefined;
 		const cloned = this.articleDiv.cloneNode(true) as HTMLElement;
 		applyInlineCalloutTextColor(cloned, baseColor);
-		return MpcardDataManager.getInstance().restoreCard(cloned.innerHTML);
+		return MpcardDataManager.getInstance().restoreCard(serializeChildren(cloned));
 	}
 
 	// async getCSS() {
@@ -575,7 +576,6 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 				item.appendChild(node);
 			}
 		}
-		// return this.articleDiv.innerHTML;
 	}
 	async renderDraft(force = false) {
 		if (force) {

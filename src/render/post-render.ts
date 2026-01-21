@@ -5,6 +5,7 @@
 import { App } from "obsidian";
 import { $t } from 'src/lang/i18n';
 import { fetchImageBlob } from 'src/utils/utils';
+import { serializeNode } from "../utils/dom";
 import { WechatClient } from './../wechat-api/wechat-client';
 // 生成上传到微信素材库的文件名
 function imageFileName(mime: string, fallbackExt?: string) {
@@ -105,7 +106,7 @@ export async function uploadSVGs(root: HTMLElement, wechatClient: WechatClient){
     })
 
     const uploadPromises = svgs.map(async (svg) => {
-        const svgString = svg.outerHTML;
+        const svgString = serializeNode(svg);
         if (svgString.length < 10000) {
             return
         }

@@ -8,6 +8,7 @@
 
 import { MarkedExtension, Tokens } from "marked";
 import { sanitizeHTMLToDom, TAbstractFile, TFile } from "obsidian";
+import { serializeChildren } from "../../utils/dom";
 import { One2MpMarkedExtension } from "./extension";
 
 
@@ -138,7 +139,7 @@ export class Image extends One2MpMarkedExtension {
 		const tempDiv = createEl('div');
 		tempDiv.appendChild(dom);
 		this.processImage(tempDiv)
-		return Promise.resolve(tempDiv.innerHTML);
+		return Promise.resolve(serializeChildren(tempDiv));
 	}
 
 	markedExtension(): MarkedExtension {

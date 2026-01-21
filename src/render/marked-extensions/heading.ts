@@ -7,6 +7,7 @@
 import { MarkedExtension } from "marked";
 import { One2MpMarkedExtension } from "./extension";
 import { sanitizeHTMLToDom } from "obsidian";
+import { serializeChildren } from "../../utils/dom";
 
 export class Heading extends One2MpMarkedExtension {
 	postprocess(html: string): Promise<string> {
@@ -22,7 +23,7 @@ export class Heading extends One2MpMarkedExtension {
 			outbox.createSpan({ text: text ? text : "", cls: 'one2mp-heading-leaf' })
 			heading.createSpan({ cls: 'one2mp-heading-tail' })
 		}
-		return Promise.resolve(tempDiv.innerHTML)
+		return Promise.resolve(serializeChildren(tempDiv))
 
 	}
 

@@ -1,4 +1,5 @@
 import { App, FileSystemAdapter, TFile, requestUrl } from "obsidian";
+import { serializeNode } from "./dom";
 
 export function areObjectsEqual(obj1: unknown, obj2: unknown): boolean {
     if (obj1 === obj2) return true;
@@ -153,7 +154,7 @@ function dataUrlToBlob(dataUrl: string): Blob {
 }
 
 export function replaceDivWithSection(root: HTMLElement){
-    let html = root.outerHTML.replaceAll(/<div /g, '<section ').replaceAll(/<\/div>/g, '</section>');
+    let html = serializeNode(root).replaceAll(/<div /g, '<section ').replaceAll(/<\/div>/g, '</section>');
     return html;
 
 }

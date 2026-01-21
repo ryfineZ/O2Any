@@ -13,6 +13,7 @@
 import { Tokens } from "marked";
 import { $t } from "src/lang/i18n";
 import { replaceDivWithSection } from "src/utils/utils";
+import { serializeNode } from "../../utils/dom";
 import { ObsidianMarkdownRenderer } from "../markdown-render";
 import { One2MpMarkedExtension } from "./extension";
 import { Notice } from "obsidian";
@@ -301,7 +302,7 @@ export class CodeRenderer extends One2MpMarkedExtension {
 			}
 
 		}
-		return root.outerHTML
+		return serializeNode(root)
 	}
 	renderAdmonitionAsync(_token: Tokens.Generic, _type: string) {
 		const renderer = ObsidianMarkdownRenderer.getInstance(this.plugin.app);
@@ -325,7 +326,7 @@ export class CodeRenderer extends One2MpMarkedExtension {
 			}
 
 		}
-		return replaceDivWithSection(root)//root.outerHTML
+		return replaceDivWithSection(root)//serializeNode(root)
 	}
 
 	async renderMermaidAsync(token: Tokens.Generic) {

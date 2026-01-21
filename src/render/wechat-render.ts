@@ -11,6 +11,7 @@
 
 import { Marked, Tokens, Renderer } from "marked";
 import { sanitizeHTMLToDom } from "obsidian";
+import { serializeChildren } from "../utils/dom";
 import One2MpPlugin from "src/main";
 import { WechatClient } from "../wechat-api/wechat-client";
 import { BlockquoteRenderer } from "./marked-extensions/blockquote";
@@ -208,7 +209,7 @@ export class WechatRender {
 		wrapper.querySelectorAll('ol li, ul li').forEach((li) => {
 			const hasMedia = li.querySelector('img, video, figure');
 			// 彻底清理空白字符、<br> 和空标签
-			const content = li.innerHTML
+			const content = serializeChildren(li)
 				.replace(/<br\s*\/?>/gi, '')
 				.replace(/&nbsp;/gi, '')
 				.replace(/\u00A0/g, '')
@@ -221,7 +222,7 @@ export class WechatRender {
 				li.remove();
 			}
 		});
-		return wrapper.innerHTML;
+		return serializeChildren(wrapper);
 	}
 
 	public async parseNote(path: string) {

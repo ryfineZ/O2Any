@@ -7,6 +7,7 @@
 import { Tokens, MarkedExtension } from "marked";
 import { One2MpMarkedExtension } from "./extension";
 import { sanitizeHTMLToDom } from "obsidian";
+import { serializeChildren, serializeNode } from "../../utils/dom";
 
 export class ListItem extends One2MpMarkedExtension {
     postprocess(html: string): Promise<string> {
@@ -26,7 +27,7 @@ export class ListItem extends One2MpMarkedExtension {
         }
         const tempDiv = document.createElement('div');
         tempDiv.appendChild(root);
-        return Promise.resolve(tempDiv.innerHTML);
+        return Promise.resolve(serializeChildren(tempDiv));
         
     }
     renderItem(item: Tokens.ListItem) {
@@ -46,7 +47,7 @@ export class ListItem extends One2MpMarkedExtension {
                     list_el.createEl('p').setText('')
                 }
             }
-            return frame.outerHTML
+            return serializeNode(frame)
         }
     }
 

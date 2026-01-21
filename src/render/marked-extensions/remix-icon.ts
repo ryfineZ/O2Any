@@ -6,6 +6,7 @@
 import { MarkedExtension } from "marked";
 import { ObsidianMarkdownRenderer } from "../markdown-render";
 import { One2MpMarkedExtension } from "./extension";
+import { serializeNode } from "../../utils/dom";
 
 const remixIconRegex = /`(ris|fas):([a-z0-9-]+)`/i;
 const remixIconRegexTokenizer = /^`(ris|fas):([a-z0-9-]+)`/i;
@@ -24,7 +25,7 @@ export class RemixIconRenderer extends One2MpMarkedExtension {
 			return '<span>remix icon not found </span>';
 		}
 		this.remixIndex++
-		return root.outerHTML;
+		return serializeNode(root);
 	}
 
 

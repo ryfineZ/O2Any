@@ -2,6 +2,7 @@
  * Url handling
  */
 import { App, sanitizeHTMLToDom, TAbstractFile, TFile } from 'obsidian';
+import { serializeChildren } from './dom';
 
 export function isMarkdownFile(file: TFile | TAbstractFile) {
 	let ext = ''
@@ -73,7 +74,7 @@ export function DomToDom(node: HTMLElement, queies: string[]) {
             index++;
         }
     }
-    const html = node.innerHTML
+    const html = serializeChildren(node)
     const root = sanitizeHTMLToDom(html)
     for (const [id, element] of nodeMap) {
         const replaceNode = root.querySelector(`#${id}`)

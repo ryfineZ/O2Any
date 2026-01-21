@@ -15,6 +15,7 @@ import { ObsidianMarkdownRenderer } from "../markdown-render";
 import { One2MpMarkedExtension } from "./extension";
 import { $t } from "src/lang/i18n";
 import { parseFrontmatter } from "src/utils/frontmatter";
+import { serializeNode } from "../../utils/dom";
 
 declare module "obsidian" {
 	interface Vault {
@@ -553,7 +554,7 @@ export class Embed extends One2MpMarkedExtension {
 			return $t("render.pdf-crop-failed");
 		}
 		this.pdfCropIndex++;
-		return `<section class="pdf-crop">${root.outerHTML}</section>`;
+		return `<section class="pdf-crop">${serializeNode(root)}</section>`;
 	}
 		renderVideo(href?: string): string | false | undefined {
 			void href;
@@ -564,7 +565,7 @@ export class Embed extends One2MpMarkedExtension {
 			return "render video failed";
 		}
 		this.videoIndex++;
-		return `<section class="video">${root.outerHTML}</section>`;
+		return `<section class="video">${serializeNode(root)}</section>`;
 	}
 		renderVoice(href?: string): string | false | undefined {
 			void href;
@@ -575,6 +576,6 @@ export class Embed extends One2MpMarkedExtension {
 			return "render voice failed";
 		}
 		this.voiceIndex++;
-		return `<section class="audio">${root.outerHTML}</section>`;
+		return `<section class="audio">${serializeNode(root)}</section>`;
 	}
 }

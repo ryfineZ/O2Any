@@ -7,6 +7,7 @@
 
 import { MarkedExtension } from "marked";
 import { sanitizeHTMLToDom } from "obsidian";
+import { serializeChildren } from "../../utils/dom";
 import { One2MpMarkedExtension } from "./extension";
 
 function isHeading(element:Element) {
@@ -70,7 +71,7 @@ export class Summary extends One2MpMarkedExtension {
             this.processHeading(tempDiv, heading)
         }
         
-        return Promise.resolve(tempDiv.innerHTML);
+        return Promise.resolve(serializeChildren(tempDiv));
     }
 
     markedExtension(): MarkedExtension {
