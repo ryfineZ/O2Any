@@ -52,21 +52,10 @@ const loadDraftDb = async (): Promise<DraftDb | null> => {
 	if (draftDb) {
 		return draftDb;
 	}
-	try {
-		const { default: PouchDB } = await import("pouchdb-browser");
-		const { default: PouchDBFind } = await import("pouchdb-find");
-		PouchDB.plugin(PouchDBFind);
-		draftDb = new PouchDB("one2mp-local-drafts");
-		return draftDb;
-	} catch (error) {
-		console.warn("PouchDB 初始化失败，改用内存草稿存储", error);
-		return null;
-	}
+	return null;
 };
 
-export const initDraftDB = async (): Promise<void> => {
-	await loadDraftDb();
-};
+export const initDraftDB = async (): Promise<void> => {};
 export class LocalDraftManager {
     private plugin: One2MpPlugin;
     private db: DraftDb | null = null;
