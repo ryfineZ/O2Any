@@ -28,6 +28,7 @@ import { initDraftDB } from "./assets/draft-manager";
 import { MessageService } from "./utils/message-service";
 const VIEW_TYPE_ONE2MP_PREVIEW = "one2mp-article-preview";
 import { WechatClient } from "./wechat-api/wechat-client";
+import { HaloClient } from "./platforms/halo/halo-client";
 import { Spinner } from "./views/spinner";
 import { MpcardInsertModal } from "./modals/mpcard-insert-modal";
 
@@ -46,6 +47,9 @@ const DEFAULT_SETTINGS: One2MpSetting = {
 	defaultMpcardNickname: "",
 	defaultMpcardSignature: "",
 	themeDownloadOverwrite: false,
+	haloSites: [],
+	selectedHaloSite: "",
+	haloPublishByDefault: true,
 };
 const ONE2MP_ICON_ID = "one2mp-logo";
 const ONE2MP_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
@@ -57,6 +61,7 @@ const ONE2MP_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10
 export default class One2MpPlugin extends Plugin {
 	settings: One2MpSetting;
 	wechatClient: WechatClient;
+	haloClient: HaloClient;
 	private editorChangeListener: EventRef | null = null;
 	messageService: MessageService;
 	resourceManager = ResourceManager.getInstance(this);
@@ -97,6 +102,12 @@ export default class One2MpPlugin extends Plugin {
 			account.appId = account.appId.trim();
 			account.appSecret = account.appSecret.trim();
 		});
+		this.settings.haloSites.forEach((site) => {
+			site.name = site.name.trim();
+			site.url = site.url.trim();
+			site.token = site.token.trim();
+		});
+		this.settings.selectedHaloSite = this.settings.selectedHaloSite?.trim();
 		this.settings.ipAddress = this.settings.ipAddress?.trim();
 		this.settings.selectedMPAccount = this.settings.selectedMPAccount?.trim();
 		this.settings.accountDataPath = this.settings.accountDataPath?.trim();
@@ -331,6 +342,7 @@ export default class One2MpPlugin extends Plugin {
 			this.messageService = new MessageService();
 			await this.loadSettings();
 			this.wechatClient = WechatClient.getInstance(this);
+			this.haloClient = new HaloClient(this);
 			addIcon(ONE2MP_ICON_ID, ONE2MP_ICON_SVG);
 
 			const previewModule = await import("./views/previewer");

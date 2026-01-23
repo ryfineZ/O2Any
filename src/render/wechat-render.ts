@@ -32,7 +32,6 @@ import { Summary } from "./marked-extensions/summary";
 import { Image } from "./marked-extensions/image";
 import { stripTemplateMarkerLines } from "src/utils/template-markers";
 import { parseFrontmatter } from "src/utils/frontmatter";
-import { serializeChildren } from "src/utils/utils";
 // import { ListItem } from './marked-extensions/list-item'
 
 const markedOptiones = {

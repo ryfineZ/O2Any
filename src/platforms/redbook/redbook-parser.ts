@@ -36,6 +36,47 @@ const stripHtml = (content: string): string => {
 	return content.replace(/<[^>]*>/g, "");
 };
 
+const normalizeObsidianImage = (content: string): string => {
+	// 将 Obsidian 图片语法 ![[xxx|400]] 转为标准 Markdown 图片，便于统一解析
+	return content.replace(/!\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g, (_match, path) => {
+		const safePath = String(path).trim();
+		return safePath ? `![](${safePath})` : "";
+	});
+};
+
+const extractImagesFromMarkdown = (content: string, pushImage: (raw: string) => number): void => {
+	// 单次扫描，保持图片在文中的顺序
+	const pattern = /!\[\[[^\]]+\]\]|!\[[^\]]*\]\([^)]+\)/g;
+	for (const match of content.matchAll(pattern)) {
+		const rawToken = match[0] || "";
+		if (!rawToken) {
+			continue;
+		}
+		if (rawToken.startsWith("![[")) {
+			const inner = rawToken.slice(3, -2);
+			const value = inner.split("|")[0].split("#")[0].trim();
+			if (value) {
+				pushImage(value);
+			}
+			continue;
+		}
+		if (rawToken.startsWith("![")) {
+			let inner = rawToken.replace(/^!\[[^\]]*\]\(/, "").replace(/\)$/, "");
+			inner = inner.trim();
+			if (inner.startsWith("<") && inner.endsWith(">")) {
+				inner = inner.slice(1, -1).trim();
+			}
+			const spaceIndex = inner.indexOf(" ");
+			if (spaceIndex > 0) {
+				inner = inner.slice(0, spaceIndex).trim();
+			}
+			if (inner) {
+				pushImage(inner);
+			}
+		}
+	}
+};
+
 const normalizeSpace = (content: string): string => {
 	return content.replace(/\n{3,}/g, "\n\n").trim();
 };
@@ -45,7 +86,7 @@ const getEmojiNum = (index: number) => {
 };
 
 export class RedBookParser {
-	private buildRenderer(images: string[]) {
+	private buildRenderer(pushImage: (raw: string) => number) {
 		const getText = (value: unknown): string => {
 			if (value == null) {
 				return "";
@@ -193,8 +234,8 @@ export class RedBookParser {
 			},
 			image(token: any): string {
 				const href = token?.href ?? (typeof token === "string" ? token : "");
-				images.push(href || "");
-				return `【图${images.length}】`;
+				const index = pushImage(href || "");
+				return `【图${index}】`;
 			},
 			br(): string {
 				return "\n";
@@ -206,10 +247,24 @@ export class RedBookParser {
 	async parse(content: string): Promise<RedBookParseResult> {
 		const cleaned = stripFrontmatter(content);
 		const images: string[] = [];
+		const imageSet = new Set<string>();
+		const pushImage = (raw: string): number => {
+			const value = (raw || "").trim();
+			if (!value) {
+				return images.length + 1;
+			}
+			if (!imageSet.has(value)) {
+				imageSet.add(value);
+				images.push(value);
+			}
+			return images.indexOf(value) + 1;
+		};
+		extractImagesFromMarkdown(cleaned, pushImage);
+		const normalized = normalizeObsidianImage(cleaned);
 		const marked = new Marked();
 		marked.use({ gfm: true, breaks: true });
-		marked.use({ renderer: this.buildRenderer(images) });
-		const raw = await marked.parse(cleaned);
+		marked.use({ renderer: this.buildRenderer(pushImage) });
+		const raw = await marked.parse(normalized);
 		const plain = normalizeSpace(stripHtml(String(raw)));
 		return {
 			text: plain,

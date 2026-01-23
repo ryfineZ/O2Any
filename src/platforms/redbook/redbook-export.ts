@@ -1,5 +1,8 @@
-import { App, normalizePath, Notice, TFile } from "obsidian";
+import { App, normalizePath, Notice, Platform, TFile } from "obsidian";
 import { RedBookParser } from "./redbook-parser";
+import { getCoverFromFrontmatter } from "src/utils/wechat-frontmatter";
+import { UrlUtils } from "src/utils/urls";
+import { FileSystemAdapter } from "obsidian";
 
 const safeName = (name: string) => {
 	return name.replace(/[\\/:*?"<>|]/g, "-").trim() || "未命名";
@@ -8,6 +11,90 @@ const safeName = (name: string) => {
 const ensureFolder = async (app: App, folder: string) => {
 	if (!app.vault.getAbstractFileByPath(folder)) {
 		await app.vault.createFolder(folder);
+	}
+};
+
+const getVaultRelativePathFromAbsolute = (app: App, absPath: string): string | null => {
+	const adapter = app.vault.adapter;
+	if (!(adapter instanceof FileSystemAdapter)) {
+		return null;
+	}
+	const basePath = adapter.getBasePath();
+	if (!absPath.startsWith(basePath)) {
+		return null;
+	}
+	let relative = absPath.slice(basePath.length);
+	if (relative.startsWith("/") || relative.startsWith("\\")) {
+		relative = relative.slice(1);
+	}
+	return relative.replace(/\\\\/g, "/");
+};
+
+const getRedbookCoverFromFrontmatter = (app: App, file: TFile): string | null => {
+	const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter ?? null;
+	const keys = ["小红书封面图", "小红书封面", "redbook_cover", "xhs_cover"];
+	for (const key of keys) {
+		const value = frontmatter?.[key];
+		if (typeof value === "string" && value.trim()) {
+			return value.trim();
+		}
+	}
+	const fallback = getCoverFromFrontmatter(frontmatter);
+	return fallback ?? null;
+};
+
+const normalizeCoverRef = (app: App, coverRef: string | null): string | null => {
+	if (!coverRef || !coverRef.trim()) {
+		return null;
+	}
+	let ref = coverRef.trim();
+	if (ref.startsWith("vault:")) {
+		ref = ref.slice("vault:".length);
+	}
+	if (ref.startsWith("obsidian://")) {
+		const parser = new UrlUtils(app);
+		const filePath = parser.parseObsidianUrl(ref);
+		if (filePath) {
+			ref = filePath;
+		}
+	}
+	if (ref.startsWith("file://")) {
+		const filePath = decodeURIComponent(ref.replace("file://", ""));
+		const vaultPath = getVaultRelativePathFromAbsolute(app, filePath);
+		if (vaultPath) {
+			ref = vaultPath;
+		}
+	}
+	return ref;
+};
+
+const openFolderInSystem = (app: App, folder: string, sequenceFile?: string) => {
+	if (Platform.isMobile) {
+		return;
+	}
+	const appAny = app as unknown as { openWithDefaultApp?: (path: string) => void };
+	const openWithDefaultApp = appAny.openWithDefaultApp;
+	if (!openWithDefaultApp) {
+		return;
+	}
+	const adapterAny = app.vault.adapter as { getFullPath?: (path: string) => string };
+	const fullFolderPath = adapterAny.getFullPath ? adapterAny.getFullPath(folder) : folder;
+	const openTarget = (target: string) => {
+		try {
+			openWithDefaultApp(target);
+		} catch (error) {
+			console.debug("打开文件夹失败", error);
+		}
+	};
+	openTarget(fullFolderPath);
+	openTarget(`${fullFolderPath}/`);
+	if (sequenceFile) {
+		const fullSequence = adapterAny.getFullPath ? adapterAny.getFullPath(sequenceFile) : sequenceFile;
+		openTarget(fullSequence);
+	}
+	const clipboard = typeof navigator !== "undefined" ? navigator.clipboard : undefined;
+	if (clipboard?.writeText) {
+		void clipboard.writeText(fullFolderPath);
 	}
 };
 
@@ -81,11 +168,16 @@ export const exportRedBookPackage = async (
 ) => {
 	const content = await app.vault.cachedRead(file);
 	const result = await parser.parse(content);
+	const coverRef = normalizeCoverRef(app, getRedbookCoverFromFrontmatter(app, file));
+	const images = coverRef
+		? [coverRef, ...result.images.filter((item) => item !== coverRef)]
+		: result.images;
 	const parentPath = file.parent?.path || "";
+	const exportRoot = parentPath.includes("/") ? parentPath.split("/").slice(0, -1).join("/") : "";
 	const title = safeName(file.basename);
-	const baseFolder = normalizePath(`${parentPath}/小红书导出/${title}-${formatNow()}`);
+	const baseFolder = normalizePath(`${exportRoot}/小红书导出/${title}-${formatNow()}`);
 	const imageFolder = normalizePath(`${baseFolder}/图片`);
-	await ensureFolder(app, normalizePath(`${parentPath}/小红书导出`));
+	await ensureFolder(app, normalizePath(`${exportRoot}/小红书导出`));
 	await ensureFolder(app, baseFolder);
 	await ensureFolder(app, imageFolder);
 
@@ -94,8 +186,8 @@ export const exportRedBookPackage = async (
 
 	let sequenceText = "";
 	let successCount = 0;
-	for (let i = 0; i < result.images.length; i += 1) {
-		const raw = result.images[i];
+	for (let i = 0; i < images.length; i += 1) {
+		const raw = images[i];
 		const index = i + 1;
 		const fileRef = resolveVaultImageFile(app, raw);
 		if (!fileRef) {
@@ -114,10 +206,11 @@ export const exportRedBookPackage = async (
 	const sequencePath = normalizePath(`${baseFolder}/上传顺序.txt`);
 	await app.vault.create(sequencePath, sequenceText.trim() + "\n");
 
-	new Notice(`小红书素材已导出：${baseFolder}（${successCount}/${result.images.length}）`);
+	new Notice(`小红书素材已导出：${baseFolder}（${successCount}/${images.length}）`);
+	openFolderInSystem(app, baseFolder, sequencePath);
 	return {
 		folder: baseFolder,
-		imageCount: result.images.length,
+		imageCount: images.length,
 		successCount,
 	};
 };

@@ -8,6 +8,7 @@ import {
 	debounce,
 	DropdownComponent,
 	EventRef,
+	FileSystemAdapter,
 	ItemView,
 	MarkdownView,
 	Notice,
@@ -22,6 +23,8 @@ import { serializeChildren } from "../utils/dom";
 import One2MpPlugin from "src/main";
 import { ObsidianMarkdownRenderer } from "src/render/markdown-render";
 import { PreviewRender } from "src/render/marked-extensions/extension";
+import { exportRedBookPackage } from "src/platforms/redbook/redbook-export";
+import { RedBookParser } from "src/platforms/redbook/redbook-parser";
 import {
 	uploadCanvas,
 	applyInlineCalloutTextColor,
@@ -37,12 +40,14 @@ import { MPArticleHeader } from "./mp-article-header";
 import { WebViewModal } from "./webview";
 import { PublishConfigModal } from "src/modals/publish-config-modal";
 import { DualIps } from "src/utils/ip-address";
+import { UrlUtils } from "src/utils/urls";
 import type { ThemeSelector } from "../theme/theme-selector";
 
 export const VIEW_TYPE_ONE2MP_PREVIEW = "one2mp-article-preview";
 export interface ElectronWindow extends Window {
 	WEBVIEW_SERVER_URL: string;
 }
+type PreviewPlatform = "wechat" | "redbook" | "halo";
 
 /**
  * PreviewPanel is a view component that renders and previews markdown content with WeChat integration.
@@ -69,6 +74,18 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 	private themeManagerModule: typeof import("../theme/theme-manager") | null = null;
 	private allowRender = false;
 	private initialRenderScheduled = false;
+	private currentPlatform: PreviewPlatform = "wechat";
+	private platformTabs: Map<PreviewPlatform, HTMLButtonElement> = new Map();
+	private platformPanels: Map<PreviewPlatform, HTMLDivElement> = new Map();
+	private redbookParser = new RedBookParser();
+	private redbookPreviewEl: HTMLDivElement | null = null;
+	private redbookContent = "";
+	private redbookCoverFrame: HTMLDivElement | null = null;
+	private redbookCoverImageEl: HTMLImageElement | null = null;
+	private redbookCoverRef: string | null = null;
+	private readonly redbookCoverFrontmatterKey = "小红书封面图";
+	private haloPreviewEl: HTMLDivElement | null = null;
+	private haloSiteTextEl: HTMLDivElement | null = null;
 	private debouncedRender = debounce(async () => {
 		if (this.plugin.settings.realTimeRender) {
 			await this.renderDraft();
@@ -234,25 +251,45 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		const mainDiv = container.createDiv({
 			cls: "one2mp-main-scroll-area",
 		});
-		
-		// 3. Article Metadata Card (Header)
-		this.draftHeader = new MPArticleHeader(this.plugin, mainDiv);
 
-		// 4. Preview Title
-		this.previewTitleEl = mainDiv.createDiv({
+		// 3. Platform Tabs
+		const tabs = mainDiv.createDiv({ cls: "one2mp-platform-tabs" });
+		this.buildPlatformTabs(tabs);
+
+		// 4. Platform Panels
+		const panels = mainDiv.createDiv({ cls: "one2mp-platform-panels" });
+		const wechatPanel = panels.createDiv({
+			cls: "one2mp-platform-panel one2mp-platform-panel-active",
+		});
+		this.platformPanels.set("wechat", wechatPanel);
+
+		// 4.1 WeChat Panel Content
+		this.draftHeader = new MPArticleHeader(this.plugin, wechatPanel);
+
+		this.previewTitleEl = wechatPanel.createDiv({
 			cls: "one2mp-preview-title",
 		});
 		this.setPreviewTitle();
 
-		// 5. Article Content Render Area
-		this.renderDiv = mainDiv.createDiv({ cls: "render-container" });
+		this.renderDiv = wechatPanel.createDiv({ cls: "render-container" });
 		this.renderDiv.id = "render-div";
-		this.renderPreviewer = mainDiv.createDiv({
+		this.renderPreviewer = wechatPanel.createDiv({
 			cls: "one2mp-render-preview",
-		})
-		
+		});
+
 		this.containerDiv = this.renderDiv.createDiv({ cls: "one2mp-article" });
 		this.articleDiv = this.containerDiv.createDiv({ cls: "article-div" });
+
+		// 4.2 RedBook Panel Content
+		const redbookPanel = panels.createDiv({ cls: "one2mp-platform-panel" });
+		this.platformPanels.set("redbook", redbookPanel);
+		this.buildRedbookPanel(redbookPanel);
+
+		const haloPanel = panels.createDiv({ cls: "one2mp-platform-panel" });
+		this.platformPanels.set("halo", haloPanel);
+		this.buildHaloPanel(haloPanel);
+
+		this.setActivePlatform("wechat");
 	}
 
 	buildToolbar(container: HTMLElement) {
@@ -418,6 +455,383 @@ export class PreviewPanel extends ItemView implements PreviewRender {
             });
 	}
 	
+	private buildPlatformTabs(container: HTMLElement) {
+		const platforms: Array<{ key: PreviewPlatform; label: string }> = [
+			{ key: "wechat", label: $t("views.platform.wechat") },
+			{ key: "redbook", label: $t("views.platform.redbook") },
+			{ key: "halo", label: $t("views.platform.halo") },
+		];
+		platforms.forEach((platform) => {
+			const btn = container.createEl("button", {
+				cls: "one2mp-platform-tab",
+			});
+			btn.setText(platform.label);
+			btn.onclick = () => {
+				this.setActivePlatform(platform.key);
+			};
+			this.platformTabs.set(platform.key, btn);
+		});
+	}
+
+	private setActivePlatform(platform: PreviewPlatform) {
+		this.currentPlatform = platform;
+		this.platformTabs.forEach((tab, key) => {
+			tab.classList.toggle("one2mp-platform-tab-active", key === platform);
+		});
+		this.platformPanels.forEach((panel, key) => {
+			panel.classList.toggle(
+				"one2mp-platform-panel-active",
+				key === platform
+			);
+		});
+		if (platform === "wechat") {
+			void this.renderDraft(true);
+			return;
+		}
+		if (platform === "redbook") {
+			void this.renderRedbookPreview();
+			return;
+		}
+		if (platform === "halo") {
+			void this.renderHaloPreview();
+		}
+	}
+
+	private buildRedbookPanel(container: HTMLElement) {
+		const coverContainer = container.createDiv({ cls: "one2mp-redbook-cover" });
+		coverContainer.createDiv({
+			cls: "one2mp-redbook-cover-title",
+			text: $t("views.redbook.cover-title"),
+		});
+		coverContainer.createDiv({
+			cls: "one2mp-redbook-cover-hint",
+			text: $t("views.redbook.cover-hint"),
+		});
+		this.redbookCoverFrame = coverContainer.createDiv({
+			cls: "one2mp-redbook-cover-frame",
+			attr: { droppable: true },
+		});
+		this.redbookCoverFrame.ondragenter = (event) => {
+			event.preventDefault();
+			this.redbookCoverFrame?.addClass("image-on-dragover");
+		};
+		this.redbookCoverFrame.ondragleave = (event) => {
+			event.preventDefault();
+			this.redbookCoverFrame?.removeClass("image-on-dragover");
+		};
+		this.redbookCoverFrame.ondragover = (event) => {
+			event.preventDefault();
+		};
+		this.redbookCoverFrame.addEventListener("drop", (event) => {
+			void this.handleRedbookCoverDrop(event);
+		});
+		this.refreshRedbookCover();
+
+		const actions = container.createDiv({ cls: "one2mp-platform-actions" });
+
+		const createBtn = (label: string, action: () => void) => {
+			const btn = actions.createEl("button");
+			btn.setText(label);
+			btn.onclick = action;
+			return btn;
+		};
+
+		createBtn($t("views.redbook.refresh"), () => {
+			void this.renderRedbookPreview();
+		});
+		createBtn($t("views.redbook.copy"), () => {
+			void this.copyRedbookText();
+		});
+		createBtn($t("views.redbook.export"), () => {
+			void this.exportRedbookPackage();
+		});
+		createBtn($t("views.redbook.open"), () => {
+			this.openUrl("https://creator.xiaohongshu.com/");
+		});
+
+		this.redbookPreviewEl = container.createDiv({
+			cls: "one2mp-platform-preview",
+		});
+	}
+
+		private buildHaloPanel(container: HTMLElement) {
+		const info = container.createDiv({ cls: "one2mp-halo-info" });
+		this.haloSiteTextEl = info.createDiv({ cls: "one2mp-halo-site" });
+		this.updateHaloSiteText();
+		info.createDiv({
+			cls: "one2mp-halo-hint",
+			text: $t("views.halo.hint"),
+		});
+
+		const actions = container.createDiv({ cls: "one2mp-platform-actions" });
+		const createBtn = (label: string, action: () => void) => {
+			const btn = actions.createEl("button");
+			btn.setText(label);
+			btn.onclick = action;
+			return btn;
+		};
+
+		createBtn($t("views.halo.publish"), () => {
+			void this.plugin.haloClient.publishActiveNote();
+		});
+		createBtn($t("views.halo.open-site"), () => {
+			const site = this.getSelectedHaloSite();
+			if (!site) {
+				new Notice($t("views.halo.missing-site"));
+				return;
+			}
+			this.openUrl(site.url);
+		});
+
+		this.haloPreviewEl = container.createDiv({
+			cls: "one2mp-platform-preview one2mp-halo-preview",
+		});
+		void this.renderHaloPreview();
+	}
+
+	private async renderHaloPreview() {
+		if (!this.haloPreviewEl) {
+			return;
+		}
+		this.haloPreviewEl.empty();
+		this.updateHaloSiteText();
+		const site = this.getSelectedHaloSite();
+		if (!site) {
+			this.haloPreviewEl.createDiv({ text: $t("views.halo.missing-site") });
+			return;
+		}
+		this.haloPreviewEl.createDiv({
+			text: $t("views.halo.ready", [site.name || site.url]),
+		});
+	}
+
+	private updateHaloSiteText() {
+		if (!this.haloSiteTextEl) {
+			return;
+		}
+		const site = this.getSelectedHaloSite();
+		if (!site) {
+			this.haloSiteTextEl.setText($t("views.halo.missing-site"));
+			return;
+		}
+		this.haloSiteTextEl.setText($t("views.halo.current-site", [site.name || site.url]));
+	}
+
+	private getSelectedHaloSite() {
+		const sites = this.plugin.settings.haloSites;
+		if (!sites || sites.length === 0) {
+			return null;
+		}
+		const selected = this.plugin.settings.selectedHaloSite;
+		if (selected) {
+			const hit = sites.find((site) => site.name === selected);
+			if (hit) {
+				return hit;
+			}
+		}
+		return sites[0] ?? null;
+	}
+
+	private getActiveMarkdownFile(): TFile | null {
+		const file = this.app.workspace.getActiveFile();
+		if (!file || file.extension !== "md") {
+			return null;
+		}
+		return file;
+	}
+
+	private async renderRedbookPreview() {
+		if (!this.redbookPreviewEl) {
+			return;
+		}
+		const file = this.getActiveMarkdownFile();
+		this.redbookPreviewEl.empty();
+		if (!file) {
+			this.redbookContent = "";
+			this.redbookPreviewEl.createDiv({
+				text: $t("views.redbook.no-active-file"),
+			});
+			return;
+		}
+		const content = await this.app.vault.cachedRead(file);
+		const result = await this.redbookParser.parse(content);
+		this.redbookContent = result.text;
+		this.refreshRedbookCover();
+		const pre = this.redbookPreviewEl.createEl("pre", {
+			cls: "one2mp-redbook-pre",
+		});
+		pre.setText(result.text || $t("views.redbook.empty"));
+	}
+
+	private async copyRedbookText() {
+		if (!this.redbookContent.trim()) {
+			new Notice($t("views.redbook.empty"));
+			return;
+		}
+		if (!navigator.clipboard?.writeText) {
+			new Notice($t("settings.clipboard-not-supported"));
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(this.redbookContent);
+			new Notice($t("views.redbook.copied"));
+		} catch (error) {
+			console.warn("复制小红书文案失败", error);
+		}
+	}
+
+	private async exportRedbookPackage() {
+		const file = this.getActiveMarkdownFile();
+		if (!file) {
+			new Notice($t("views.redbook.no-active-file"));
+			return;
+		}
+		try {
+			await exportRedBookPackage(this.app, file, this.redbookParser);
+		} catch (error) {
+			console.error("小红书素材导出失败", error);
+		}
+	}
+
+	private refreshRedbookCover() {
+		const ref = this.getRedbookCoverFromFrontmatter();
+		this.redbookCoverRef = ref;
+		const url = this.resolveRedbookCoverUrl(ref);
+		this.updateRedbookCoverView(url);
+	}
+
+	private updateRedbookCoverView(url: string | null) {
+		if (!this.redbookCoverFrame) {
+			return;
+		}
+		this.redbookCoverFrame.empty();
+		this.redbookCoverImageEl = null;
+		if (!url) {
+			this.redbookCoverFrame.createDiv({
+				cls: "one2mp-redbook-cover-placeholder",
+				text: $t("views.redbook.cover-empty"),
+			});
+			return;
+		}
+		this.redbookCoverImageEl = this.redbookCoverFrame.createEl("img", {
+			cls: "one2mp-redbook-cover-image",
+			attr: { src: url },
+		});
+	}
+
+	private getRedbookCoverFromFrontmatter(): string | null {
+		const file = this.getActiveMarkdownFile();
+		if (!file) {
+			return null;
+		}
+		const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter ?? null;
+		if (!frontmatter) {
+			return null;
+		}
+		const candidates = [this.redbookCoverFrontmatterKey, "小红书封面", "redbook_cover", "xhs_cover"];
+		for (const key of candidates) {
+			const value = frontmatter[key];
+			if (typeof value == "string" && value.trim() !== "") {
+				return value.trim();
+			}
+		}
+		return null;
+	}
+
+	private resolveRedbookCoverUrl(ref: string | null): string | null {
+		if (!ref || !ref.trim()) {
+			return null;
+		}
+		const trimmed = ref.trim();
+		if (trimmed.startsWith("http")) {
+			return trimmed;
+		}
+		let path = trimmed;
+		if (path.startsWith("vault:")) {
+			path = path.slice("vault:".length);
+		}
+		const file = this.app.vault.getAbstractFileByPath(path);
+		if (file instanceof TFile) {
+			return this.app.vault.getResourcePath(file);
+		}
+		return null;
+	}
+
+	private async saveRedbookCoverToFrontmatter(coverRef: string | null) {
+		const file = this.getActiveMarkdownFile();
+		if (!file) {
+			return;
+		}
+		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+			if (coverRef && coverRef.trim()) {
+				frontmatter[this.redbookCoverFrontmatterKey] = coverRef.trim();
+			} else {
+				delete frontmatter[this.redbookCoverFrontmatterKey];
+			}
+		});
+	}
+
+	private getVaultRelativePathFromAbsolute(absPath: string): string | null {
+		const adapter = this.app.vault.adapter;
+		if (!(adapter instanceof FileSystemAdapter)) {
+			return null;
+		}
+		const basePath = adapter.getBasePath();
+		if (!absPath.startsWith(basePath)) {
+			return null;
+		}
+		let relative = absPath.slice(basePath.length);
+		if (relative.startsWith("/") || relative.startsWith("\\")) {
+			relative = relative.slice(1);
+		}
+		return relative.replace(/\\/g, "/");
+	}
+
+	private async handleRedbookCoverDrop(event: DragEvent) {
+		if (!this.redbookCoverFrame) {
+			return;
+		}
+		event.preventDefault();
+		this.redbookCoverFrame.removeClass("image-on-dragover");
+		const dataTransfer = event.dataTransfer;
+		let url = dataTransfer?.getData("text/uri-list")?.trim() ?? "";
+		if (!url) {
+			url = dataTransfer?.getData("text/plain")?.trim() ?? "";
+		}
+		if (url.includes("\n")) {
+			const lines = url
+				.split(/\r?\n/)
+				.map((line) => line.trim())
+				.filter((line) => line && !line.startsWith("#"));
+			url = lines[0] ?? "";
+		}
+		if (!url) {
+			return;
+		}
+		let coverRef: string | null = null;
+		if (url.startsWith("obsidian://")) {
+			const parser = new UrlUtils(this.app);
+			const filePath = parser.parseObsidianUrl(url);
+			if (filePath) {
+				coverRef = filePath;
+			}
+		} else if (url.startsWith("http")) {
+			coverRef = url;
+		} else if (url.startsWith("file://")) {
+			const filePath = decodeURIComponent(url.replace("file://", ""));
+			const vaultPath = this.getVaultRelativePathFromAbsolute(filePath);
+			coverRef = vaultPath || url;
+		} else {
+			const file = this.app.vault.getAbstractFileByPath(url);
+			if (file instanceof TFile) {
+				coverRef = url;
+			}
+		}
+		await this.saveRedbookCoverToFrontmatter(coverRef);
+		this.redbookCoverRef = coverRef;
+		this.updateRedbookCoverView(this.resolveRedbookCoverUrl(coverRef));
+	}
+
 	updateAccountOptions() {
 		const dd = this.accountDropdown;
 		dd.selectEl.empty();
@@ -582,6 +996,14 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 			this.allowRender = true;
 		}
 		if (!this.allowRender || !this.isViewActive()) {
+			return;
+		}
+		if (this.currentPlatform === "redbook") {
+			await this.renderRedbookPreview();
+			return;
+		}
+		if (this.currentPlatform === "halo") {
+			await this.renderHaloPreview();
 			return;
 		}
 

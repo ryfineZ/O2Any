@@ -7,6 +7,7 @@ import {
 	Notice,
 	PluginSettingTab,
 	Setting,
+	setIcon,
 	Platform,
 	Modal,
 	TextComponent,
@@ -21,6 +22,7 @@ import { FileSuggest } from "src/utils/file-suggest";
 import {
 	WeChatAccountInfo,
 	One2MpSetting,
+	HaloSiteInfo,
 } from "./one2mp-setting";
 import { DualIps } from "src/utils/ip-address";
 
@@ -75,10 +77,27 @@ export class One2MpSettingTab extends PluginSettingTab {
 		containerEl.empty();
 		containerEl.addClass("one2mp-settings");
 
-		// 1. 公众号账号管理区域
-		this.createAccountManagement(containerEl);
+		// 1. 公众号账号管理区域（可折叠）
+		const wechatSection = this.createSettingsSection(containerEl, $t("settings.section-wechat"), {
+			open: true,
+			addTooltip: $t("settings.create-new-account"),
+			onAdd: () => {
+				this.createNewAccount();
+			},
+		});
+		this.createAccountManagement(wechatSection);
 
-		// 2. 通用设置区域
+		// 2. Halo 发布配置（可折叠）
+		const haloSection = this.createSettingsSection(containerEl, $t("settings.section-halo"), {
+			open: true,
+			addTooltip: $t("settings.halo-add-site"),
+			onAdd: () => {
+				this.createNewHaloSite();
+			},
+		});
+		this.createHaloSettings(haloSection);
+
+		// 3. 通用设置区域
 		this.createGeneralSettings(containerEl);
         
         // 3. 自定义主题
@@ -88,34 +107,55 @@ export class One2MpSettingTab extends PluginSettingTab {
 		this.createBackupRestore(containerEl);
 	}
 
+	private createSettingsSection(
+		container: HTMLElement,
+		title: string,
+		options?: { open?: boolean; addTooltip?: string; onAdd?: () => void }
+	) {
+		const details = container.createEl("details", { cls: "one2mp-settings-section" });
+		if (options?.open) {
+			details.open = true;
+		}
+		const summary = details.createEl("summary");
+		summary.createSpan({ text: title });
+		summary.addEventListener("click", (event) => {
+			const target = event.target as HTMLElement;
+			if (target.closest("button")) {
+				return;
+			}
+			event.preventDefault();
+			details.open = !details.open;
+		});
+		if (options?.onAdd) {
+			const btn = summary.createEl("button", { cls: "clickable-icon one2mp-section-add" });
+			btn.setAttr("aria-label", options.addTooltip || "");
+			btn.setAttr("title", options.addTooltip || "");
+			btn.onclick = (event) => {
+				event.preventDefault();
+				event.stopPropagation();
+				options.onAdd?.();
+			};
+			setIcon(btn, "plus");
+		}
+		return details.createDiv({ cls: "one2mp-settings-section-body" });
+	}
+
 	createAccountManagement(container: HTMLElement) {
-		new Setting(container)
-			.setName($t("settings.wechat-account"))
-			.setHeading()
-			.addExtraButton((button) => {
-				button
-					.setIcon("plus")
-					.setTooltip($t("settings.create-new-account"))
-					.onClick(() => {
-						this.createNewAccount();
-					});
-			});
-
-        const guide = container.createDiv({ cls: "one2mp-appid-guide" });
-        guide.createEl("span", {
-            text: $t("settings.appid-secret-guide") + " ",
-            cls: "setting-item-description"
-        });
-        guide.createEl("a", {
-            href: "https://developers.weixin.qq.com/console/",
-            text: $t("settings.appid-secret-guide-link"),
-        }).setAttr("target", "_blank");
-
+		const guide = container.createDiv({ cls: "one2mp-appid-guide" });
+		guide.createEl("span", {
+			text: $t("settings.appid-secret-guide") + " ",
+			cls: "setting-item-description",
+		});
+		guide
+			.createEl("a", {
+				href: "https://developers.weixin.qq.com/console/",
+				text: $t("settings.appid-secret-guide-link"),
+			})
+			.setAttr("target", "_blank");
 
 		if (this.plugin.settings.mpAccounts.length === 0) {
-            // 如果没有账号，提示创建
-            const noAccountDiv = container.createDiv({ cls: "one2mp-no-account" });
-            noAccountDiv.createEl("p", { text: $t("settings.select-account") }); // reusing translation key broadly
+			const noAccountDiv = container.createDiv({ cls: "one2mp-no-account" });
+			noAccountDiv.createEl("p", { text: $t("settings.select-account") });
 		} else {
 			this.plugin.settings.mpAccounts.forEach((account, index) => {
 				this.renderAccountItem(container, account, index);
@@ -250,6 +290,212 @@ export class One2MpSettingTab extends PluginSettingTab {
 		this.plugin.saveSettings();
 		this.display();
 	}
+
+	createHaloSettings(container: HTMLElement) {
+		const desc = container.createDiv({ cls: "setting-item-description" });
+		desc.setText($t("settings.halo-settings-desc"));
+
+		if (this.plugin.settings.haloSites.length == 0) {
+			const empty = container.createDiv({ cls: "one2mp-no-account" });
+			empty.createEl("p", { text: $t("settings.halo-no-site") });
+		} else {
+			this.plugin.settings.haloSites.forEach((site, index) => {
+				this.renderHaloSiteItem(container, site, index);
+			});
+		}
+
+		const defaultSetting = new Setting(container)
+			.setName($t("settings.halo-default-site"))
+			.setDesc($t("settings.halo-default-site-desc"))
+			.setClass("one2mp-setting-wide");
+		defaultSetting.addDropdown((dropdown) => {
+			if (this.plugin.settings.haloSites.length == 0) {
+				dropdown.addOption("", $t("settings.halo-no-site"));
+				dropdown.setDisabled(true);
+				return;
+			}
+			this.plugin.settings.haloSites.forEach((site) => {
+				dropdown.addOption(site.name, site.name);
+			});
+			const selected =
+				this.plugin.settings.selectedHaloSite || this.plugin.settings.haloSites[0]?.name || "";
+			dropdown.setValue(selected);
+			dropdown.onChange((value) => {
+				this.plugin.settings.selectedHaloSite = value;
+				this.plugin.saveSettings();
+			});
+		});
+
+		new Setting(container)
+			.setName($t("settings.halo-publish-default"))
+			.setDesc($t("settings.halo-publish-default-desc"))
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.haloPublishByDefault)
+					.onChange((value) => {
+						this.plugin.settings.haloPublishByDefault = value;
+						this.plugin.saveSettings();
+					});
+			});
+	}
+
+	renderHaloSiteItem(container: HTMLElement, site: HaloSiteInfo, index: number) {
+		const siteContainer = container.createDiv({ cls: "one2mp-halo-site-item" });
+		const title = siteContainer.createDiv({ cls: "one2mp-halo-site-title" });
+		title.setText(site.name || $t("settings.halo-new-site"));
+		title.setAttr("role", "button");
+		title.setAttr("tabindex", "0");
+		const content = siteContainer.createDiv({ cls: "one2mp-halo-site-details" });
+		const toggleCollapse = () => {
+			const nextCollapsed = !siteContainer.classList.contains("is-collapsed");
+			siteContainer.toggleClass("is-collapsed", nextCollapsed);
+			title.setAttr("aria-expanded", nextCollapsed ? "false" : "true");
+		};
+		title.addEventListener("click", () => {
+			toggleCollapse();
+		});
+		title.addEventListener("keydown", (event) => {
+			if (event.key === "Enter" || event.key === " ") {
+				event.preventDefault();
+				toggleCollapse();
+			}
+		});
+
+		new Setting(content)
+			.setName($t("settings.halo-site-name"))
+			.setDesc($t("settings.halo-site-name-desc"))
+			.setClass("one2mp-setting-wide")
+			.addText((text) =>
+				text
+					.setValue(site.name)
+					.onChange((value) => {
+						site.name = value;
+						title.setText(value || $t("settings.halo-new-site"));
+						if (this.plugin.settings.selectedHaloSite == this.plugin.settings.haloSites[index].name) {
+							this.plugin.settings.selectedHaloSite = value;
+						}
+						this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(content)
+			.setName($t("settings.halo-site-url"))
+			.setDesc($t("settings.halo-site-url-desc"))
+			.setClass("one2mp-setting-wide")
+			.addText((text) =>
+				text
+					.setValue(site.url)
+					.setPlaceholder($t("settings.halo-site-url-placeholder"))
+					.onChange((value) => {
+						site.url = value.trim();
+						this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(content)
+			.setName($t("settings.halo-site-token"))
+			.setDesc($t("settings.halo-site-token-desc"))
+			.setClass("one2mp-setting-wide")
+			.addText((text) =>
+				text
+					.setValue(site.token)
+					.setPlaceholder($t("settings.halo-site-token-placeholder"))
+					.onChange((value) => {
+						site.token = value.trim();
+						this.plugin.saveSettings();
+					})
+			);
+
+		const actions = new Setting(content).setName("");
+		actions.addButton((button) => {
+			button
+				.setIcon("plug-zap")
+				.setTooltip($t("settings.halo-test"))
+				.setButtonText($t("settings.halo-test"))
+				.onClick(() => {
+					void this.testHaloConnection(site);
+				});
+		});
+		actions.addButton((button) => {
+			button
+				.setIcon("trash-2")
+				.setTooltip($t("settings.halo-delete-site"))
+				.setButtonText($t("settings.halo-delete-site"))
+				.setClass("mod-warning")
+				.onClick(() => {
+					this.plugin.settings.haloSites.splice(index, 1);
+					if (this.plugin.settings.selectedHaloSite == site.name) {
+						this.plugin.settings.selectedHaloSite = this.plugin.settings.haloSites[0]?.name || "";
+					}
+					this.plugin.saveSettings();
+					this.display();
+				});
+		});
+	}
+
+	private getSelectedHaloSiteFromSettings(): HaloSiteInfo | null {
+		const sites = this.plugin.settings.haloSites;
+		if (!sites || sites.length === 0) {
+			return null;
+		}
+		const selected = this.plugin.settings.selectedHaloSite;
+		if (selected) {
+			const hit = sites.find((site) => site.name === selected);
+			if (hit) {
+				return hit;
+			}
+		}
+		return sites[0] ?? null;
+	}
+
+	private async testHaloConnection(siteOverride?: HaloSiteInfo) {
+		const site = siteOverride || this.getSelectedHaloSiteFromSettings();
+		if (!site || !site.url.trim() || !site.token.trim()) {
+			new Notice($t("settings.halo-test-missing"));
+			return;
+		}
+		try {
+			const result = await this.plugin.haloClient.testConnection(site);
+			if (result.ok) {
+				new Notice($t("settings.halo-test-success"));
+				return;
+			}
+			switch (result.code) {
+				case "auth":
+					new Notice($t("settings.halo-test-auth"));
+					break;
+				case "not-found":
+					new Notice($t("settings.halo-test-not-found"));
+					break;
+				default:
+					new Notice($t("settings.halo-test-failed"));
+			}
+		} catch (error) {
+			console.warn("Halo 测试连接失败", error);
+			new Notice($t("settings.halo-test-failed"));
+		}
+	}
+
+	createNewHaloSite() {
+		let n = 1;
+		let newName = $t("settings.halo-new-site");
+		while (this.plugin.settings.haloSites.some((site) => site.name == newName)) {
+			n += 1;
+			newName = `${$t("settings.halo-new-site")} ${n}`;
+		}
+		const newSite: HaloSiteInfo = {
+			name: newName,
+			url: "",
+			token: "",
+		};
+		this.plugin.settings.haloSites.push(newSite);
+		if (!this.plugin.settings.selectedHaloSite) {
+			this.plugin.settings.selectedHaloSite = newName;
+		}
+		this.plugin.saveSettings();
+		this.display();
+	}
+
 
 	createGeneralSettings(container: HTMLElement) {
 		new Setting(container)

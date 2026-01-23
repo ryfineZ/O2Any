@@ -20,6 +20,40 @@ CSS for one2mp plugin.
 /* ==========================================================================
    Settings Tab (Refactored)
    ========================================================================== */
+.one2mp-settings-section {
+    margin-bottom: 16px;
+    border: var(--one2mp-border);
+    border-radius: var(--radius-m);
+    background: var(--background-primary);
+    padding: 6px 12px 12px;
+}
+
+.one2mp-settings-section summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 6px 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.one2mp-section-add {
+    border: none;
+    background: transparent;
+    padding: 4px;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.one2mp-section-add:hover {
+    color: var(--text-normal);
+}
+
+.one2mp-settings-section-body {
+    margin-top: 8px;
+}
+
 .one2mp-settings .one2mp-account-item {
     margin-bottom: 12px;
     border: var(--one2mp-border);
@@ -391,6 +425,11 @@ CSS for one2mp plugin.
     max-width: 100%;
 }
 
+.one2mp-settings .setting-item-control select {
+    width: 100%;
+    max-width: 100%;
+}
+
 /* ==========================================================================
    Article Metadata Card (Header)
    ========================================================================== */
@@ -552,6 +591,52 @@ CSS for one2mp plugin.
     box-shadow: none;
 }
 
+.one2mp-redbook-cover {
+    padding: 10px 20px 0;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.one2mp-redbook-cover-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.one2mp-redbook-cover-hint {
+    color: var(--text-muted);
+    font-size: 0.85em;
+    margin-bottom: 8px;
+}
+
+.one2mp-redbook-cover-frame {
+    border: 1px dashed var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    background: var(--background-primary);
+    padding: 8px;
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.one2mp-redbook-cover-frame.image-on-dragover {
+    border-color: var(--interactive-accent);
+    background: var(--background-modifier-hover);
+}
+
+.one2mp-redbook-cover-placeholder {
+    color: var(--text-muted);
+    font-size: 0.9em;
+}
+
+.one2mp-redbook-cover-image {
+    max-width: 100%;
+    max-height: 220px;
+    border-radius: var(--radius-s);
+    object-fit: cover;
+}
+
 /* ==========================================================================
    Article Content Area
    ========================================================================== */
@@ -643,6 +728,59 @@ CSS for one2mp plugin.
     margin: 8px auto 24px;
     overflow: auto;
 }
+
+.one2mp-halo-info {
+    max-width: 800px;
+    width: calc(100% - 40px);
+    margin: 12px auto 0;
+    padding: 0 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.one2mp-halo-site {
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.one2mp-halo-hint {
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+
+.one2mp-halo-site-item {
+    border: var(--one2mp-border);
+    border-radius: var(--radius-m);
+    margin-bottom: 12px;
+    background-color: var(--background-primary-alt);
+    overflow: hidden;
+}
+
+.one2mp-halo-site-item.is-collapsed .one2mp-halo-site-details {
+    display: none;
+}
+
+.one2mp-halo-site-item summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 6px 0;
+}
+
+.one2mp-halo-site-details {
+    padding: 10px 16px;
+    margin-top: 0;
+}
+
+.one2mp-halo-site-title {
+    font-weight: 600;
+    padding: 10px;
+    background-color: var(--background-modifier-hover);
+    border-bottom: var(--one2mp-border);
+    cursor: pointer;
+    user-select: none;
+}
+
 
 .one2mp-redbook-pre {
     margin: 0;

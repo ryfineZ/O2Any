@@ -27,6 +27,7 @@ import {
 	getFrontmatterBool,
 	getFrontmatterString,
 } from "src/utils/wechat-frontmatter";
+import { parseFrontmatter } from "src/utils/frontmatter";
 
 export class MPArticleHeader {
 	updateDraftDraftId(mediaId: string) {
@@ -780,6 +781,19 @@ export class MPArticleHeader {
 		await this.migrateFrontmatterKeys();
 		const frontmatterCover = this.getCoverFromFrontmatter();
 		let coverRef = frontmatterCover;
+		if (!coverRef) {
+			const file = this.getActiveMarkdownFile();
+			if (file) {
+				const raw = await this.plugin.app.vault.read(file);
+				const parsed = parseFrontmatter(raw);
+				const parsedCover = getCoverFromFrontmatter(
+					parsed.data as Record<string, unknown>
+				);
+				if (parsedCover) {
+					coverRef = parsedCover;
+				}
+			}
+		}
 		if (this.activeLocalDraft !== undefined) {
 			await this.syncDraftFromFrontmatter();
 			if (!coverRef && this.activeLocalDraft.cover_image_url) {
