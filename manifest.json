@@ -1,7 +1,7 @@
 {
   "id": "o2any-obsdian",
   "name": "O2Any",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "minAppVersion": "1.7.0",
   "description": "Render notes and publish to WeChat MP.",
   "author": "张雨帆",
