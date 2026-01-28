@@ -6,6 +6,7 @@ export const FRONTMATTER_CANONICAL_KEYS = {
 	cover: "封面图",
 	openComment: "开启评论",
 	onlyFans: "仅粉丝可评论",
+	wechatArticleUrl: "公众号链接",
 } as const;
 
 export const FRONTMATTER_ALIASES = {
@@ -35,6 +36,16 @@ export const FRONTMATTER_ALIASES = {
 	],
 	onlyFans: [FRONTMATTER_CANONICAL_KEYS.onlyFans, "only_fans_can_comment"],
 } as const;
+
+export const WECHAT_ARTICLE_URL_KEYS = [
+	FRONTMATTER_CANONICAL_KEYS.wechatArticleUrl,
+	"公众号文章链接",
+	"wechat_url",
+	"wechat_article_url",
+	"mp_url",
+	"mp_article_url",
+	"mp_link",
+] as const;
 
 export type FrontmatterRecord = Record<string, unknown> | null;
 
@@ -115,4 +126,10 @@ export const getCoverFromFrontmatter = (
 		}
 	}
 	return null;
+};
+
+export const getWechatArticleUrlFromFrontmatter = (
+	frontmatter: FrontmatterRecord
+): string | undefined => {
+	return getFrontmatterString(frontmatter, WECHAT_ARTICLE_URL_KEYS);
 };

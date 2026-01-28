@@ -1,4 +1,5 @@
 import { Notice, TFile, requestUrl } from "obsidian";
+import { LocalDraftManager } from "src/assets/draft-manager";
 import { Marked } from "marked";
 import type One2MpPlugin from "src/main";
 import type { HaloSiteInfo } from "src/settings/one2mp-setting";
@@ -155,7 +156,13 @@ export class HaloClient {
 		let coverUrl: string | null = null;
 		try {
 			processed = await this.processMarkdown(raw, file, site);
-			const coverRef = getCoverFromFrontmatter(frontmatter ?? null);
+			let coverRef = getCoverFromFrontmatter(frontmatter ?? null);
+			if (!coverRef) {
+				const draft = await LocalDraftManager.getInstance(this.plugin).getDrafOfActiveNote();
+				if (draft?.cover_image_url) {
+					coverRef = draft.cover_image_url;
+				}
+			}
 			if (coverRef) {
 				coverUrl = await this.resolveCoverUrl(coverRef, file, site);
 			}
@@ -184,6 +191,9 @@ export class HaloClient {
 			if (existing) {
 				params = existing.post;
 				content = existing.content;
+				if (params.spec.deleted) {
+					params.spec.deleted = false;
+				}
 			}
 		}
 

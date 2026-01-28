@@ -11,6 +11,7 @@ import {
 	ItemView,
 	Notice,
 	Plugin,
+	TFile,
 	WorkspaceLeaf,
 } from "obsidian";
 import { getDualIps, DualIps } from "src/utils/ip-address";
@@ -71,6 +72,24 @@ export default class One2MpPlugin extends Plugin {
 		leaf: WorkspaceLeaf,
 		plugin: One2MpPlugin
 	) => ItemView) | null = null;
+	private readonly notePathKey = "笔记路径";
+	private updateNotePathDebounced: ((file: TFile | null) => void) | null = null;
+
+	private async updateNotePathFrontmatter(file: TFile | null) {
+		if (!file || file.extension !== "md") {
+			return;
+		}
+		const notePath = file.path;
+		try {
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				if (frontmatter[this.notePathKey] !== notePath) {
+					frontmatter[this.notePathKey] = notePath;
+				}
+			});
+		} catch (error) {
+			console.warn("更新笔记路径失败", error);
+		}
+	}
 
 	async saveThemeFolder() {
 		this.trimSettings();
@@ -361,6 +380,27 @@ export default class One2MpPlugin extends Plugin {
 			});
 
 			this.addSettingTab(new One2MpSettingTab(this.app, this));
+
+			this.updateNotePathDebounced = debounce(
+				(file: TFile | null) => {
+					void this.updateNotePathFrontmatter(file);
+				},
+				200
+			);
+			this.registerEvent(
+				this.app.workspace.on("file-open", (file) => {
+					if (this.updateNotePathDebounced) {
+						this.updateNotePathDebounced(file);
+					}
+				})
+			);
+			this.registerEvent(
+				this.app.vault.on("rename", (file) => {
+					if (file instanceof TFile && this.updateNotePathDebounced) {
+						this.updateNotePathDebounced(file);
+					}
+				})
+			);
 
 			this.createSpinner();
 

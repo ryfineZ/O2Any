@@ -30,6 +30,7 @@ import { Footnote } from "./marked-extensions/footnote";
 import { Links } from "./marked-extensions/links";
 import { Summary } from "./marked-extensions/summary";
 import { Image } from "./marked-extensions/image";
+import { getWechatArticleUrlFromFrontmatter } from "src/utils/wechat-frontmatter";
 import { stripTemplateMarkerLines } from "src/utils/template-markers";
 import { parseFrontmatter } from "src/utils/frontmatter";
 // import { ListItem } from './marked-extensions/list-item'
@@ -182,15 +183,100 @@ export class WechatRender {
 		);
 		// this.addExtension(new ListItem(this.plugin, this.previewRender, this.marked))
 	}
-	async parse(md: string) {
+	private async replaceInternalLinks(content: string, notePath: string): Promise<string> {
+		const frontmatterCache = new Map<string, Record<string, unknown> | null>();
+		const escapeHtml = (value: string) =>
+			value
+				.replace(/&/g, "&amp;")
+				.replace(/</g, "&lt;")
+				.replace(/>/g, "&gt;")
+				.replace(/"/g, "&quot;")
+				.replace(/'/g, "&#39;");
+		const resolveFrontmatter = async (filePath: string) => {
+			if (frontmatterCache.has(filePath)) {
+				return frontmatterCache.get(filePath) ?? null;
+			}
+			try {
+				const raw = await this.plugin.app.vault.adapter.read(filePath);
+				const { data } = parseFrontmatter(raw);
+				frontmatterCache.set(filePath, data ?? null);
+				return data ?? null;
+			} catch {
+				frontmatterCache.set(filePath, null);
+				return null;
+			}
+		};
+		const resolveWikiToken = async (token: string) => {
+			const inner = token.slice(2, -2);
+			const [linkPartRaw, aliasRaw] = inner.split('|', 2);
+			const linkPart = (linkPartRaw ?? '').trim();
+			const display = (aliasRaw ?? linkPart).trim();
+			const linkPath = linkPart.split('#')[0].trim();
+			if (!linkPath) {
+				return display || token;
+			}
+			const file = this.plugin.app.metadataCache.getFirstLinkpathDest(linkPath, notePath);
+			if (!file) {
+				return display || linkPath;
+			}
+			let frontmatter = this.plugin.app.metadataCache.getFileCache(file)?.frontmatter ?? null;
+			if (!frontmatter) {
+				frontmatter = await resolveFrontmatter(file.path);
+			}
+			const url = getWechatArticleUrlFromFrontmatter(frontmatter);
+			const label = display || file.basename || linkPath;
+			if (!url) {
+				return label;
+			}
+			const safeUrl = escapeHtml(url);
+			const safeLabel = escapeHtml(label);
+			return `<a data-linktype=\"2\" data-link=\"${safeUrl}\" href=\"${safeUrl}\">${safeLabel}</a>`;
+		};
+		const lines = content.split(/\r?\n/);
+		let inFence = false;
+		const output: string[] = [];
+		for (const line of lines) {
+			if (/^\s*```/.test(line)) {
+				inFence = !inFence;
+				output.push(line);
+				continue;
+			}
+			if (inFence) {
+				output.push(line);
+				continue;
+			}
+			const pattern = /!\[\[[^\]]+\]\]|\[\[[^\]]+\]\]/g;
+			let lastIndex = 0;
+			let result = '';
+			let match: RegExpExecArray | null;
+			while ((match = pattern.exec(line)) !== null) {
+				const token = match[0];
+				result += line.slice(lastIndex, match.index);
+				if (token.startsWith('![[')) {
+					result += token;
+				} else {
+					result += await resolveWikiToken(token);
+				}
+				lastIndex = match.index + token.length;
+			}
+			result += line.slice(lastIndex);
+			output.push(result);
+		}
+		return output.join('\n');
+	}
+
+	async parse(md: string, notePath?: string) {
 		const { content } = parseFrontmatter(md);
 		const cleaned = stripTemplateMarkerLines(content);
 		const normalized = normalizeHrAfterImage(cleaned);
+		const processed = notePath
+			? await this.replaceInternalLinks(normalized, notePath)
+			: normalized;
 		// 先让扩展完成预处理（如缓存、索引）
 		for (const extension of this.extensions) {
 			await extension.prepare();
 		}
-		return await this.marked.parse(normalized);
+		return await this.marked.parse(processed);
 	}
 	async postprocess(html: string) {
 		let result = html;
@@ -229,7 +315,7 @@ export class WechatRender {
 		// 直接读取 Markdown 并走 marked 解析，减少双重渲染的开销
 		const md = await this.plugin.app.vault.adapter.read(path);
 		// 每次解析前重置扩展内部状态（links、mermaid 索引等）
-		let html = await this.parse(md);
+		let html = await this.parse(md, path);
 		html = await this.postprocess(html);
 		return html;
 	}

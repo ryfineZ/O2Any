@@ -80,7 +80,13 @@ export class ThemeManager {
 			// Download each theme file
 			for (const theme of themes) {
 				try {
-
+					const filePath = `${saveDir}/${theme.file}`;
+					const existing =
+						this.plugin.app.vault.getAbstractFileByPath(filePath);
+					if (existing && !overwrite) {
+						skippedCount += 1;
+						continue;
+					}
 
 					const encodedFile = encodeURIComponent(theme.file);
 					const fileResponse = await requestUrl(`${url}${encodedFile}`);
@@ -91,14 +97,7 @@ export class ThemeManager {
 					}
 
 					const fileContent = fileResponse.text;
-					const filePath = `${saveDir}/${theme.file}`;
-					const existing =
-						this.plugin.app.vault.getAbstractFileByPath(filePath);
 					if (existing) {
-						if (!overwrite) {
-							skippedCount += 1;
-							continue;
-						}
 						if (existing instanceof TFile) {
 							await this.plugin.app.vault.modify(existing, fileContent);
 							successCount += 1;
